@@ -1,4 +1,4 @@
-cbt
+CBT
 ===
 
-Console BitTorrent Client
+Console BitTorrent Client with simple syntax
