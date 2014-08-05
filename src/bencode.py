@@ -20,7 +20,12 @@ class Bencode():
             return None
         self._Data = self._ReadElement()
         return self._Data
-        
+
+    def Close(self):
+        if not self._File:
+            return
+        self._File.close()
+
     def _ReadNumber(self):
         """Format: i<Digits>e"""
         try:
