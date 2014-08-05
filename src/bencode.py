@@ -1,4 +1,6 @@
-import os
+#!/usr/bin/python
+
+from os import path
 
 class Bencode():
     def __init__(self):
@@ -6,10 +8,10 @@ class Bencode():
 
     def Open(self, FileName):
         self._FileName = FileName
-        IsFileExists = os.path.isfile(self._FileName)
+        IsFileExists = path.isfile(self._FileName)
         if not IsFileExists:
             return False
-        self._File = open(self._FileName)
+        self._File = open(self._FileName, "rb")
         return True
 
     def Read(self):
@@ -41,14 +43,8 @@ class Bencode():
             self._ReadByte()
             ByteArray = ""
             for i in xrange(Size):
-                try:
-                    Byte = self._ReadByte()
-                    ByteArray += Byte
-                    print len(Byte)
-                except:
-                    print "Err: %d" % i
-            if Size == 11740:
-                print "%d (%d)" % (Size, len(ByteArray))
+                Byte = self._ReadByte()
+                ByteArray += Byte
             return ByteArray
         except:
             return ""
@@ -79,8 +75,6 @@ class Bencode():
             if Type != "d":
                 raise RuntimeError("Element is not a dictionary")
             Dictionary = {}
-            # TODO: delete this
-            max = 100
             while True:
                 Byte = self._ReadByte(True)
                 if Byte == "e":
@@ -88,9 +82,6 @@ class Bencode():
                 Key = self._ReadByteArray()
                 Value = self._ReadElement()
                 Dictionary[Key] = Value
-                max -= 1
-                if max == 0:
-                    break
             self._ReadByte()
             return Dictionary
         except:
