@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-from os import path
+import os.path
 
 class Bencode():
     def __init__(self):
@@ -8,7 +8,7 @@ class Bencode():
 
     def Open(self, FileName):
         self._FileName = FileName
-        IsFileExists = path.isfile(self._FileName)
+        IsFileExists = os.path.isfile(self._FileName)
         if not IsFileExists:
             return False
         self._File = open(self._FileName, "rb")
