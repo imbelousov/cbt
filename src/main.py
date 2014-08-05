@@ -7,7 +7,7 @@ Console Bit Torrent Client
 from bencode import Bencode
 
 def main():
-    File = Bencode()
+    """File = Bencode()
     File.Open("1.torrent")
     Dict = File.Read()
     File.Close()
@@ -35,7 +35,11 @@ def main():
     print "piece length:"
     print "    %s" % Dict["info"]["piece length"]
     print "pieces:"
-    print "    %s bytes array" % len(Dict["info"]["pieces"])
+    print "    %s bytes array" % len(Dict["info"]["pieces"])"""
+    File = Bencode()
+    File.OpenFromString("i23e")
+    print File.Read()
+    File.Close()
 
 if __name__ == "__main__":
     main()

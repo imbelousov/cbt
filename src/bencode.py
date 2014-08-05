@@ -1,17 +1,23 @@
 #!/usr/bin/python
 
 import os.path
+import cStringIO
 
 class Bencode():
     def __init__(self):
         self._File = None
 
-    def Open(self, FileName):
+    def OpenFromFile(self, FileName):
         self._FileName = FileName
         IsFileExists = os.path.isfile(self._FileName)
         if not IsFileExists:
             raise RuntimeError("File does not exist")
         self._File = open(self._FileName, "rb")
+
+    def OpenFromString(self, String):
+        self._File = cStringIO.StringIO()
+        self._File.write(String)
+        self._File.seek(0)
 
     def Read(self):
         """Converts Bencode file contents to element, generally dictionary"""
@@ -94,7 +100,7 @@ class Bencode():
         elif Type in self._DigitsGenerator():
             ByteArray = self._ReadByteArray()
             return ByteArray
-        else
+        else:
             raise RuntimeError("Unknown format")
 
     def _ReadByte(self, quiet=False):
