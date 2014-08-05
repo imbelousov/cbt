@@ -10,14 +10,13 @@ class Bencode():
         self._FileName = FileName
         IsFileExists = os.path.isfile(self._FileName)
         if not IsFileExists:
-            return False
+            raise RuntimeError("File does not exist")
         self._File = open(self._FileName, "rb")
-        return True
 
     def Read(self):
         """Converts Bencode file contents to element, generally dictionary"""
         if not self._File:
-            return None
+            raise RuntimeError("Cannot read file")
         self._Data = self._ReadElement()
         return self._Data
 
