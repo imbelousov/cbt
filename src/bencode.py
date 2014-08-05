@@ -12,9 +12,13 @@ class Bencode():
         IsFileExists = os.path.isfile(self._FileName)
         if not IsFileExists:
             raise RuntimeError("File does not exist")
+        if self._File:
+            self.Close()
         self._File = open(self._FileName, "rb")
 
     def OpenFromString(self, String):
+        if self._File:
+            self.Close()
         self._File = cStringIO.StringIO()
         self._File.write(String)
         self._File.seek(0)
@@ -30,6 +34,7 @@ class Bencode():
         if not self._File:
             return
         self._File.close()
+        self._File = None
 
     def _ReadNumber(self):
         """Format: i<Digits>e"""

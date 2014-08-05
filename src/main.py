@@ -37,7 +37,7 @@ def main():
     print "pieces:"
     print "    %s bytes array" % len(Dict["info"]["pieces"])"""
     File = Bencode()
-    File.OpenFromString("i23e")
+    File.OpenFromString("d2:ggi100e3:lol5:win!!e")
     print File.Read()
     File.Close()
 
