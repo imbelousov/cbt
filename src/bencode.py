@@ -1,13 +1,16 @@
 #!/usr/bin/python
 
+from collections import OrderedDict
 import os.path
 import cStringIO
 
 class Bencode():
     def __init__(self):
         self._File = None
+        self._Data = None
 
     def OpenFromFile(self, FileName):
+        """Makes .torrent file ready to read"""
         self._FileName = FileName
         IsFileExists = os.path.isfile(self._FileName)
         if not IsFileExists:
@@ -17,14 +20,21 @@ class Bencode():
         self._File = open(self._FileName, "rb")
 
     def OpenFromString(self, String):
+        """Makes string stream from string"""
         if self._File:
             self.Close()
         self._File = cStringIO.StringIO()
         self._File.write(String)
         self._File.seek(0)
 
-    def Read(self):
-        """Converts Bencode file contents to element, generally dictionary"""
+    def OpenFromElement(self, Element):
+        """Makes any element ready to encode"""
+        if self._File:
+            self.Close()
+        self._Data = Element
+
+    def Decode(self):
+        """Converts Bencode to element, generally dictionary"""
         if not self._File:
             raise RuntimeError("Cannot read file")
         self._Data = self._ReadElement()
@@ -32,9 +42,35 @@ class Bencode():
 
     def Close(self):
         if not self._File:
+            if self._Data:
+                self._Data = None
             return
         self._File.close()
         self._File = None
+
+    def Encode(self, Element=None):
+        """Converts element to Bencode string"""
+        if Element == None:
+            Element = self._Data
+        Type = type(Element)
+        EncodedString = ""
+        if Type in (dict, OrderedDict):
+            for Key in Element:
+                Value = Element[Key]
+                KeyEncoded = self.Encode(Key)
+                ValueEncoded = self.Encode(Value)
+                EncodedString = "%s%s%s" % (EncodedString, KeyEncoded, ValueEncoded)
+            EncodedString = "%s%s%s" % ("d", EncodedString, "e")
+        elif Type == list:
+            for Item in Element:
+                ItemEncoded = self.Encode(Item)
+                EncodedString = "%s%s" % (EncodedString, ItemEncoded)
+            EncodedString = "%s%s%s" % ("l", EncodedString, "e")
+        elif Type == int:
+            EncodedString = "%s%s%s" % ("i", str(Element), "e")
+        elif Type == str:
+            EncodedString = "%s%s:%s" % (EncodedString, len(Element), Element)
+        return EncodedString
 
     def _ReadNumber(self):
         """Format: i<Digits>e"""
@@ -79,7 +115,7 @@ class Bencode():
         Type = self._ReadByte()
         if Type != "d":
             raise RuntimeError("Element is not a dictionary")
-        Dictionary = {}
+        Dictionary = OrderedDict()
         while True:
             Byte = self._ReadByte(True)
             if Byte == "e":
