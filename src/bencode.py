@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-from collections import OrderedDict
+import collections
 import os.path
 import cStringIO
 
@@ -54,7 +54,7 @@ class Bencode():
             Element = self._Data
         Type = type(Element)
         EncodedString = ""
-        if Type in (dict, OrderedDict):
+        if Type in (dict, collections.OrderedDict):
             for Key in Element:
                 Value = Element[Key]
                 KeyEncoded = self.Encode(Key)
@@ -115,7 +115,7 @@ class Bencode():
         Type = self._ReadByte()
         if Type != "d":
             raise RuntimeError("Element is not a dictionary")
-        Dictionary = OrderedDict()
+        Dictionary = collections.OrderedDict()
         while True:
             Byte = self._ReadByte(True)
             if Byte == "e":
