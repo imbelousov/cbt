@@ -42,7 +42,7 @@ class Bencode():
             Size = self._ReadDigits()
             self._ReadByte()
             ByteArray = ""
-            for i in xrange(Size):
+            for x in xrange(Size):
                 Byte = self._ReadByte()
                 ByteArray += Byte
             return ByteArray
