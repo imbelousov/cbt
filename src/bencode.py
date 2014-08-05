@@ -28,69 +28,57 @@ class Bencode():
 
     def _ReadNumber(self):
         """Format: i<Digits>e"""
-        try:
-            Type = self._ReadByte()
-            if Type != "i":
-                raise RuntimeError("Element is not a number")
-            Number = self._ReadDigits()
-            self._ReadByte()
-            return Number
-        except:
-            return 0
+        Type = self._ReadByte()
+        if Type != "i":
+            raise RuntimeError("Element is not a number")
+        Number = self._ReadDigits()
+        self._ReadByte()
+        return Number
 
     def _ReadByteArray(self):
         """Format: <Array Size>:<Array Bytes>"""
-        try:
-            Type = self._ReadByte(True)
-            if not Type in self._DigitsGenerator():
-                raise RuntimeError("Element is not a byte array")
-            Size = self._ReadDigits()
-            self._ReadByte()
-            ByteArray = ""
-            for x in xrange(Size):
-                Byte = self._ReadByte()
-                ByteArray += Byte
-            return ByteArray
-        except:
-            return ""
+        Type = self._ReadByte(True)
+        if not Type in self._DigitsGenerator():
+            raise RuntimeError("Element is not a byte array")
+        Size = self._ReadDigits()
+        self._ReadByte()
+        ByteArray = ""
+        for x in xrange(Size):
+            Byte = self._ReadByte()
+            ByteArray += Byte
+        return ByteArray
 
     def _ReadList(self):
         """Format: l<Elements>e"""
-        try:
-            Type = self._ReadByte()
-            if Type != "l":
-                raise RuntimeError("Element is not a list")
-            List = []
-            while True:
-                Byte = self._ReadByte(True)
-                if Byte == "e":
-                    break
-                Element = self._ReadElement()
-                List.append(Element)
-            self._ReadByte()
-            return List
-        except:
-            return []
+        Type = self._ReadByte()
+        if Type != "l":
+            raise RuntimeError("Element is not a list")
+        List = []
+        while True:
+            Byte = self._ReadByte(True)
+            if Byte == "e":
+                break
+            Element = self._ReadElement()
+            List.append(Element)
+        self._ReadByte()
+        return List
 
     def _ReadDictionary(self):
         """Format: d<Dictionary Elements>e
            Element: <Byte Array><Element>"""
-        try:
-            Type = self._ReadByte()
-            if Type != "d":
-                raise RuntimeError("Element is not a dictionary")
-            Dictionary = {}
-            while True:
-                Byte = self._ReadByte(True)
-                if Byte == "e":
-                    break
-                Key = self._ReadByteArray()
-                Value = self._ReadElement()
-                Dictionary[Key] = Value
-            self._ReadByte()
-            return Dictionary
-        except:
-            return {}
+        Type = self._ReadByte()
+        if Type != "d":
+            raise RuntimeError("Element is not a dictionary")
+        Dictionary = {}
+        while True:
+            Byte = self._ReadByte(True)
+            if Byte == "e":
+                break
+            Key = self._ReadByteArray()
+            Value = self._ReadElement()
+            Dictionary[Key] = Value
+        self._ReadByte()
+        return Dictionary
 
     def _ReadElement(self):
         """Automatic type recognizing"""
@@ -107,7 +95,8 @@ class Bencode():
         elif Type in self._DigitsGenerator():
             ByteArray = self._ReadByteArray()
             return ByteArray
-        return None
+        else
+            raise RuntimeError("Unknown format")
 
     def _ReadByte(self, quiet=False):
         Byte = self._File.read(1)
@@ -117,17 +106,14 @@ class Bencode():
 
     def _ReadDigits(self):
         Digits = ""
-        try:
-            while True:
-                Byte = self._ReadByte()
-                if Byte in self._DigitsGenerator():
-                    Digits += Byte
-                else:
-                    self._File.seek(-1, 1)
-                    break
-            Digits = int(Digits)
-        except:
-            Digits = 0
+        while True:
+            Byte = self._ReadByte()
+            if Byte in self._DigitsGenerator():
+                Digits += Byte
+            else:
+                self._File.seek(-1, 1)
+                break
+        Digits = int(Digits)
         return Digits
 
     def _DigitsGenerator(self):
