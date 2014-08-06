@@ -5,6 +5,8 @@ import collections
 import hashlib
 import urllib2
 import subprocess
+import re
+import socket
 
 class TrackerRequest():
     def __init__(self):
@@ -42,20 +44,30 @@ class TrackerRequest():
     def _GetResponse(self, RequestArray):
         def CompileUrl(Host):
             Url = Host
+            UrlPattern = re.compile("^[\/]*([a-zA-Z]+)://[a-zA-Z.\-0-9]+([:0-9]*)[\/]?")
+            UrlPatternMatch = UrlPattern.match(Url)
+            if UrlPatternMatch != None:
+                UrlSplitted = UrlPattern.split(Url)
+                Protocol = UrlSplitted[1]
+                Port = UrlSplitted[2][1:]
+                if len(Port) == 0:
+                    Port = "80"
             Url = "%s%s" % (Url, "&" if "?" in Url else "?")
             for Key in RequestArray:
                 Url = "%s%s=%s&" % (Url, Key, RequestArray[Key])
-            return Url[:-1]
+            return Url[:-1], Protocol, Port
         
         def TryConnect(Tracker):
-            Url = CompileUrl(Tracker)
-            print "Try connect to %s ..." % Url
+            Url, Protocol, Port = CompileUrl(Tracker)
             try:
-                Response = urllib2.urlopen(Url).read()
-                print "Connected :)"
-                return Response
+                if Protocol in ("http", "https"):
+                    Response = urllib2.urlopen(Url).read()
+                    return Response
+                elif Protocol == "udp":
+                    #TODO
+                    print "UDP is not supported"
+                    return False
             except:
-                print "Fail :("
                 return False
         
         if self._Tracker:
@@ -72,5 +84,4 @@ class TrackerRequest():
                 Response = TryConnect(Tracker)
                 if Response:
                     return Response
-        
-        return ""
+        return "de"
