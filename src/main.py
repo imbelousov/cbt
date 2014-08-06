@@ -6,6 +6,7 @@ Console Bit Torrent Client
 
 from bencode import Bencode
 from tracker import TrackerRequest
+from peerid import GetPeerId
 
 def main():
     File = Bencode()
@@ -14,7 +15,7 @@ def main():
     File.Close()
     Request = TrackerRequest()
     Request.Meta(Element)
-    Request.Request("01234567890123456789", 6885)
+    Request.Request(GetPeerId(), 6881)
 
 if __name__ == "__main__":
     main()

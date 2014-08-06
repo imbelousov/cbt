@@ -142,7 +142,7 @@ class Bencode():
             ByteArray = self._ReadByteArray()
             return ByteArray
         else:
-            raise RuntimeError("Unknown format")
+            return None
 
     def _ReadByte(self, quiet=False):
         Byte = self._File.read(1)
