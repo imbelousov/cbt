@@ -1,14 +1,15 @@
+#!/usr/bin/python
+
 from TrackerRequest import TrackerRequest
-from PeerId import GetPeerId
 from BCode import BCode
 import urllib
 import urllib2
 
 class HttpTrackerRequest(TrackerRequest):
-    def __init__(self, Host, Info):
-        super(HttpTrackerRequest, self).__init__(Host, Info)
+    def __init__(self, Host):
+        super(HttpTrackerRequest, self).__init__(Host)
     
-    def Request(self, Event, Uploaded=0, Downloaded=0, Left=0):
+    def Request(self, Event, InfoHash, PeerId, Port, Uploaded, Downloaded, Left):
         Url = self.Host
         if not "?" in Url:
             UrlSeparator = "?"
@@ -16,9 +17,9 @@ class HttpTrackerRequest(TrackerRequest):
             UrlSeparator = "&"
         Url += UrlSeparator
         Get = {}
-        Get["info_hash"] = self.GetInfoHash()
-        Get["peer_id"] = GetPeerId()
-        Get["port"] = self.GetPort()
+        Get["info_hash"] = InfoHash
+        Get["peer_id"] = PeerId
+        Get["port"] = Port
         Get["uploaded"] = Uploaded
         Get["downloaded"] = Downloaded
         Get["left"] = Left
@@ -27,8 +28,8 @@ class HttpTrackerRequest(TrackerRequest):
         UrlParams = urllib.urlencode(Get)
         Url += UrlParams
         Response = urllib2.urlopen(Url).read()
-        Encoder = BCode()
-        Encoder.OpenFromString(Response)
-        Result = Encoder.Decode()
-        Encoder.Close()
+        BCoder = BCode()
+        BCoder.OpenFromString(Response)
+        Result = BCoder.Decode()
+        BCoder.Close()
         return Result

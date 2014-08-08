@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 from HttpTrackerRequest import HttpTrackerRequest
 from UdpTrackerRequest import UdpTrackerRequest
 
@@ -9,12 +11,11 @@ def GetTracker(Meta):
         Protocol = GetProtocol(Url)
         try:
             if Protocol == "http":
-                return HttpTrackerRequest(Url, Meta["info"])
+                return HttpTrackerRequest(Url)
             elif Protocol == "udp":
-                return UdpTrackerRequest(Url, Meta["info"])
+                return UdpTrackerRequest(Url)
         except:
             return False
-
     
     if "announce" in Meta:
         Tracker = CheckAnnouncer(Meta["announce"])

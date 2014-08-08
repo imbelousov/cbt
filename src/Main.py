@@ -5,20 +5,15 @@ Console Bit Torrent Client
 """
 
 from BCode import BCode
-from HttpTrackerRequest import HttpTrackerRequest
-from PeerId import GetPeerId
-from Tracker import GetTracker
+from Peer import Peer
 
 def main():
-    File = BCode()
-    File.OpenFromFile("1.torrent")
-    Meta = File.Decode()
-    File.Close()
-    Tracker = GetTracker(Meta)
-    if not Tracker:
-        print "Unable to connect to tracker"
-    Tracker.Request("stopped")
-    print Tracker.Request("started")
+    BCoder = BCode()
+    BCoder.OpenFromFile("1.torrent")
+    Meta = BCoder.Decode()
+    BCoder.Close()
+    Me = Peer(Meta)
+    Me.StartDownload()
 
 if __name__ == "__main__":
     main()
