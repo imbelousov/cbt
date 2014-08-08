@@ -13,9 +13,6 @@ class TrackerRequest():
         self.Host = Host
         self.Port = None
     
-    def Start(self):
-        self.SendRequest()
-    
     def GetInfoHash(self):
         Coder = BCode()
         Coder.OpenFromElement(self.Info)

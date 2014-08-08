@@ -5,9 +5,6 @@ import urllib
 import urllib2
 
 class HttpTrackerRequest(TrackerRequest):
-    EVENT_STARTED = "started"
-    EVENT_STOPPED = "stopped"
-
     def __init__(self, Host, Info):
         super(HttpTrackerRequest, self).__init__(Host, Info)
     
