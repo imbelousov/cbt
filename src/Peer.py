@@ -3,7 +3,7 @@
 from BCode import BCode
 from Tracker import GetTracker
 from Errors import CbtError
-from Net import CharToBytes, IntToBytes
+from Net import CharToBytes, IntToBytes, BytesToChar, BytesToInt
 import os
 import hashlib
 import time
@@ -21,6 +21,8 @@ class Peer:
         self.ListenPort = self.GetPort(6881, 6889)
         self.Tracker = GetTracker(self.Meta)
         self.Peers = []
+        self.ActivePeers = []
+        self.Files = []
         self.Interval = 0
         self.MinInterval = 0
     
@@ -40,7 +42,7 @@ class Peer:
         self.Peers = self.GetPeers(Info["peers"])
         self.MakeFiles(Path)
         self.Handshake()
-        return self.Peers
+        print self.ActivePeers
     
     def StopDownload(self):
         self.Tracker.Request(
@@ -61,6 +63,10 @@ class Peer:
                 FileLength = File["length"]
                 FileName = Path + os.pathsep.join(File["path"])
                 FileDir = os.sep.join(FileName.split(os.sep)[:-1])
+                self.Files.append({
+                    "path": FileName,
+                    "length": FileLength
+                })
                 try:
                     if not os.path.isdir(FileDir):
                         os.makedirs(FileDir)
@@ -73,6 +79,7 @@ class Peer:
     
     def Handshake(self):
         Data = ""
+        self.ActivePeers = []
         ProtocolIdentifier = "BitTorrent protocol"
         Data += CharToBytes(len(ProtocolIdentifier))
         Data += ProtocolIdentifier
@@ -80,16 +87,37 @@ class Peer:
         Data += IntToBytes(0)
         Data += self.InfoHash
         Data += self.PeerId
-        for Peer in self.Peers:
+        ActivePeersLock = threading.Lock()
+        def SayHello(Peer):
             try:
                 Connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 Connection.settimeout(2)
                 Connection.connect((Peer["ip"], Peer["port"]))
                 Connection.sendall(Data)
-                print Peer["ip"], Connection.recv(1024)
+                Response = Connection.recv(1024)
                 Connection.close()
+                RemoteProtocolLength = BytesToChar(Response[0])
+                RemoteProtocol = Response[1:RemoteProtocolLength+1]
+                if RemoteProtocol != "BitTorrent protocol":
+                    return
+                RemoteInfoHash = Response[RemoteProtocolLength+9:RemoteProtocolLength+29]
+                RemotePeerId = Response[RemoteProtocolLength+29:RemoteProtocolLength+49]
+                ActivePeersLock.acquire()
+                self.ActivePeers.append({
+                    "ip": Peer["ip"],
+                    "port": Peer["port"],
+                    "id": RemotePeerId
+                })
+                ActivePeersLock.release()
             except:
                 pass
+        Threads = []
+        for Peer in self.Peers:
+            RemotePeerThread = threading.Thread(target = SayHello, args = (Peer,))
+            Threads.append(RemotePeerThread)
+            RemotePeerThread.start()
+        for Thread in Threads:
+            Thread.join()
     
     def GetPeers(self, Raw):
         if type(Raw) == str:
@@ -100,7 +128,10 @@ class Peer:
                 PeerPortBytes = PeerBytes[4:6]
                 PeerIp = ".".join([str(ord(c)) for c in PeerIpBytes])
                 PeerPort = ord(PeerPortBytes[0])*0x100 + ord(PeerPortBytes[1])
-                Peers.append({"ip": PeerIp, "port": PeerPort})
+                Peers.append({
+                    "ip": PeerIp,
+                    "port": PeerPort
+                })
             return Peers
     
     def GetId(self):
