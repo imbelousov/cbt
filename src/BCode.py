@@ -69,7 +69,7 @@ class BCode():
         elif Type == int:
             EncodedString = "".join(("i", str(Element), "e"))
         elif Type == str:
-            EncodedString = "%s%s:%s" % (EncodedString, str(len(Element)), Element)
+            EncodedString = "%s%s:%s" % (EncodedString, len(Element), Element)
         return EncodedString
 
     def ReadNumber(self):
