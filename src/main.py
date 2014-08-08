@@ -4,18 +4,17 @@
 Console Bit Torrent Client
 """
 
-from bencode import Bencode
-from tracker import TrackerRequest
-from peerid import GetPeerId
+from BCode import BCode
+from HttpTrackerRequest import HttpTrackerRequest
+from PeerId import GetPeerId
 
 def main():
-    File = Bencode()
+    File = BCode()
     File.OpenFromFile("1.torrent")
     Element = File.Decode()
     File.Close()
-    Request = TrackerRequest()
-    Request.Meta(Element)
-    Request.Request(GetPeerId(), 6881)
+    Client = HttpTrackerRequest(Element["announce"], Element["info"])
+    print Client.Request("stopped")
 
 if __name__ == "__main__":
     main()

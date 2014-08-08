@@ -17,5 +17,5 @@ def GetPeerId():
     Pid = os.getpid()
     Timestamp = time.time()
     UniqueString = "%s_%s" % (Pid, Timestamp)
-    PeerId = hashlib.sha1(UniqueString).hexdigest()
+    PeerId = hashlib.sha1(UniqueString).digest()
     return PeerId
