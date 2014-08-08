@@ -18,7 +18,7 @@ class BCode():
         self.FileName = FileName
         IsFileExists = os.path.isfile(self.FileName)
         if not IsFileExists:
-            raise BCodeError("File does not exist")
+            raise BCode.BCodeError("File does not exist")
         if self.File:
             self.Close()
         self.File = open(self.FileName, "rb")
@@ -40,7 +40,7 @@ class BCode():
     def Decode(self):
         """Converts Bencode to element, generally dictionary"""
         if not self.File:
-            raise BCodeError("Cannot read file")
+            raise BCode.BCodeError("Cannot read file")
         self.Data = self.ReadElement()
         return self.Data
     
@@ -80,7 +80,7 @@ class BCode():
         """Format: i<Digits>e"""
         Type = self.ReadByte()
         if Type != "i":
-            raise BCodeError("Element is not a number")
+            raise BCode.BCodeError("Element is not a number")
         Number = self.ReadDigits()
         self.ReadByte()
         return Number
@@ -89,7 +89,7 @@ class BCode():
         """Format: <Array Size>:<Array Bytes>"""
         Type = self.ReadByte(True)
         if not Type in self.DigitsGenerator():
-            raise BCodeError("Element is not a byte array")
+            raise BCode.BCodeError("Element is not a byte array")
         Size = self.ReadDigits()
         self.ReadByte()
         ByteArray = ""
@@ -102,7 +102,7 @@ class BCode():
         """Format: l<Elements>e"""
         Type = self.ReadByte()
         if Type != "l":
-            raise BCodeError("Element is not a list")
+            raise BCode.BCodeError("Element is not a list")
         List = []
         while True:
             Byte = self.ReadByte(True)
@@ -118,7 +118,7 @@ class BCode():
            Element: <Byte Array><Element>"""
         Type = self.ReadByte()
         if Type != "d":
-            raise BCodeError("Element is not a dictionary")
+            raise BCode.BCodeError("Element is not a dictionary")
         Dictionary = collections.OrderedDict()
         while True:
             Byte = self.ReadByte(True)

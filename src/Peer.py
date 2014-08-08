@@ -3,6 +3,7 @@
 from BCode import BCode
 from Tracker import GetTracker
 from Errors import CbtError
+from Net import CharToBytes, IntToBytes
 import os
 import hashlib
 import time
@@ -23,7 +24,7 @@ class Peer:
         self.Interval = 0
         self.MinInterval = 0
     
-    def StartDownload(self):
+    def StartDownload(self, Path):
         self.StopDownload()
         Info = self.Tracker.Request(
             Event = "started",
@@ -37,7 +38,8 @@ class Peer:
         self.Interval = Info["interval"]
         self.MinInterval = Info["min interval"]
         self.Peers = self.GetPeers(Info["peers"])
-        self.MakeFiles(r"D:\Tests")
+        self.MakeFiles(Path)
+        self.Handshake()
         return self.Peers
     
     def StopDownload(self):
@@ -65,10 +67,29 @@ class Peer:
                     File = open(FileName, "wb")
                     File.seek(FileLength - 1)
                     File.write("\0")
-                except:
-                    raise PeerError("Access denied")
-                finally:
                     File.close()
+                except:
+                    raise Peer.PeerError("Access denied")
+    
+    def Handshake(self):
+        Data = ""
+        ProtocolIdentifier = "BitTorrent protocol"
+        Data += CharToBytes(len(ProtocolIdentifier))
+        Data += ProtocolIdentifier
+        Data += IntToBytes(0)
+        Data += IntToBytes(0)
+        Data += self.InfoHash
+        Data += self.PeerId
+        for Peer in self.Peers:
+            try:
+                Connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                Connection.settimeout(2)
+                Connection.connect((Peer["ip"], Peer["port"]))
+                Connection.sendall(Data)
+                print Peer["ip"], Connection.recv(1024)
+                Connection.close()
+            except:
+                pass
     
     def GetPeers(self, Raw):
         if type(Raw) == str:
@@ -79,14 +100,16 @@ class Peer:
                 PeerPortBytes = PeerBytes[4:6]
                 PeerIp = ".".join([str(ord(c)) for c in PeerIpBytes])
                 PeerPort = ord(PeerPortBytes[0])*0x100 + ord(PeerPortBytes[1])
-                Peers.append({"Ip": PeerIp, "Port": PeerPort})
+                Peers.append({"ip": PeerIp, "port": PeerPort})
             return Peers
     
     def GetId(self):
         Pid = os.getpid()
         Timestamp = time.time()
         UniqueString = "%s_%s" % (Pid, Timestamp)
-        PeerId = hashlib.sha1(UniqueString).digest()
+        UniqueHash = hashlib.sha1(UniqueString).digest()
+        Azareus = "-CB0100-"
+        PeerId = Azareus + UniqueHash[len(Azareus):]
         return PeerId
     
     def GetInfoHash(self):
@@ -106,4 +129,4 @@ class Peer:
         for Port in xrange(Start, End):
             if CheckPort(Port):
                 return Port
-        raise PeerError("Unable to listen any BitTorrent port")
+        raise Peer.PeerError("Unable to listen any BitTorrent port")

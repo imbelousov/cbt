@@ -13,7 +13,7 @@ def main():
     Meta = BCoder.Decode()
     BCoder.Close()
     Me = Peer(Meta)
-    Me.StartDownload()
+    Me.StartDownload(r"D:\Tests")
 
 if __name__ == "__main__":
     main()
