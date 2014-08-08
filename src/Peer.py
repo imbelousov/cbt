@@ -20,6 +20,8 @@ class Peer:
         self.InfoHash = self.GetInfoHash()
         self.ListenPort = self.GetPort(6881, 6889)
         self.Tracker = GetTracker(self.Meta)
+        self.PieceLength = self.Meta["info"]["piece length"]
+        self.PieceHash = self.GetPieceHashes()
         self.Peers = []
         self.ActivePeers = []
         self.Files = []
@@ -42,7 +44,6 @@ class Peer:
         self.Peers = self.GetPeers(Info["peers"])
         self.MakeFiles(Path)
         self.Handshake()
-        print self.ActivePeers
     
     def StopDownload(self):
         self.Tracker.Request(
@@ -56,26 +57,37 @@ class Peer:
         )
     
     def MakeFiles(self, Path):
+        def MakeOne(Name, Length):
+            Dir = os.sep.join(Name.split(os.sep)[:-1])
+            try:
+                if not os.path.isdir(Dir):
+                    os.makedirs(Dir)
+                File = open(Name, "wb")
+                File.seek(Length - 1)
+                File.write("\0")
+                File.close()
+                self.Files.append({
+                    "path": Name,
+                    "length": Length
+                })
+            except:
+                raise Peer.PeerError("Access denied")
+        
+        if Path[-1] != os.sep:
+            Path += os.sep
         if "files" in self.Meta["info"]:
+            """Multiple file mode"""
             for File in self.Meta["info"]["files"]:
-                if Path[-1] != os.sep:
-                    Path += os.sep
                 FileLength = File["length"]
                 FileName = Path + os.pathsep.join(File["path"])
-                FileDir = os.sep.join(FileName.split(os.sep)[:-1])
-                self.Files.append({
-                    "path": FileName,
-                    "length": FileLength
-                })
-                try:
-                    if not os.path.isdir(FileDir):
-                        os.makedirs(FileDir)
-                    File = open(FileName, "wb")
-                    File.seek(FileLength - 1)
-                    File.write("\0")
-                    File.close()
-                except:
-                    raise Peer.PeerError("Access denied")
+                MakeOne(FileName, FileLength)
+        elif "name" in self.Meta["info"] and "length" in self.Meta["info"]:
+            """Single file mode"""
+            FileName = Path + self.Meta["info"]["name"]
+            FileLength = self.Meta["info"]["length"]
+            MakeOne(FileName, FileLength)
+        else:
+            raise Peer.PeerError("Invalid meta file")
     
     def Handshake(self):
         Data = ""
@@ -94,8 +106,10 @@ class Peer:
                 Connection.settimeout(2)
                 Connection.connect((Peer["ip"], Peer["port"]))
                 Connection.sendall(Data)
-                Response = Connection.recv(1024)
+                Response = Connection.recv(128)
                 Connection.close()
+                if len(Response) < 49:
+                    return
                 RemoteProtocolLength = BytesToChar(Response[0])
                 RemoteProtocol = Response[1:RemoteProtocolLength+1]
                 if RemoteProtocol != "BitTorrent protocol":
@@ -161,3 +175,10 @@ class Peer:
             if CheckPort(Port):
                 return Port
         raise Peer.PeerError("Unable to listen any BitTorrent port")
+    
+    def GetPieceHashes(self):
+        Hashes = []
+        HashesRaw = self.Meta["info"]["pieces"]
+        for i in xrange(0, len(HashesRaw), 20):
+            Hashes.append(HashesRaw[i:i+20])
+        return Hashes
