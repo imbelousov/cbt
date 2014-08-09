@@ -96,3 +96,24 @@ Format: l<Elements>e
 >>> Result = BCoder.Decode("l****e")
 >>> Result
 []
+
+>>> BCoder.Decode("li25e")
+Traceback (most recent call last):
+BCodeError: End of file
+
+>>> Result = BCoder.Decode("l10:Matrix 3x3li1ei2ei3eeli4ei5ei6eeli7ei8ei9eee")
+>>> Result
+['Matrix 3x3', [1, 2, 3], [4, 5, 6], [7, 8, 9]]
+
+>>> Result = BCoder.Encode([1, 2, 3, 4, 5, "a", "b", "c", [6, 7, 8]])
+>>> Result
+'li1ei2ei3ei4ei5e1:a1:b1:cli6ei7ei8eee'
+
+====================
+Test dictionary
+Format: d<Dictionary Elements>e
+Element: <Byte Array><Element>
+
+>>> Result = BCoder.Decode("d1:a5:aaaaa1:b6:bbbbbbe")
+>>> Result
+OrderedDict([('a', 'aaaaa'), ('b', 'bbbbbb')])
