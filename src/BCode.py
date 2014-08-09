@@ -128,20 +128,16 @@ class BCode():
     def ReadElement(self):
         """Automatic type recognizing"""
         Type = self.ReadByte(True)
-        if Type == "i":
-            Number = self.ReadNumber()
-            return Number
-        elif Type == "l":
-            List = self.ReadList()
-            return List
-        elif Type == "d":
-            Dictionary = self.ReadDictionary()
-            return Dictionary
-        elif Type in self.DigitsGenerator():
-            ByteArray = self.ReadByteArray()
-            return ByteArray
-        else:
+        TypeSwitch = dict({
+            "i": self.ReadNumber,
+            "l": self.ReadList,
+            "d": self.ReadDictionary, }, **{
+            AnyDigit: self.ReadByteArray
+                for AnyDigit in self.DigitsGenerator()
+        })
+        if not Type in TypeSwitch:
             return None
+        return TypeSwitch[Type]()
     
     def ReadByte(self, Quiet=False):
         Byte = self.File.read(1)
