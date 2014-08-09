@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#! /usr/bin/python
+# -*- coding: utf-8 -*-
 
 from TrackerRequest import TrackerRequest
 from BCode import BCode
@@ -29,7 +30,5 @@ class HttpTrackerRequest(TrackerRequest):
         Url += UrlParams
         Response = urllib2.urlopen(Url).read()
         BCoder = BCode()
-        BCoder.OpenFromString(Response)
-        Result = BCoder.Decode()
-        BCoder.Close()
+        Result = BCoder.Decode(Response)
         return Result

@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#! /usr/bin/python
+# -*- coding: utf-8 -*-
 
 from Errors import CbtError
 import collections
@@ -11,51 +12,39 @@ class BCode():
 
     def __init__(self):
         self.File = None
-        self.Data = None
     
-    def OpenFromFile(self, FileName):
-        """Makes .torrent file ready to read"""
-        self.FileName = FileName
-        IsFileExists = os.path.isfile(self.FileName)
+    def Decode(self, EncodedString):
+        """Converts Bencode to element, generally dictionary"""
+        if type(EncodedString) != str:
+            return None
+        if self.File:
+            self.File.Close()
+        self.File = cStringIO.StringIO()
+        self.File.write(EncodedString)
+        self.File.seek(0)
+        Element = self.ReadElement()
+        self.File.close()
+        self.File = None
+        return Element
+    
+    def DecodeFile(self, Path):
+        """Converts .torrent file contents to element"""
+        IsFileExists = os.path.isfile(Path)
         if not IsFileExists:
             raise BCode.BCodeError("File does not exist")
         if self.File:
-            self.Close()
-        self.File = open(self.FileName, "rb")
-    
-    def OpenFromString(self, String):
-        """Makes string stream from string"""
-        if self.File:
-            self.Close()
-        self.File = cStringIO.StringIO()
-        self.File.write(String)
-        self.File.seek(0)
-    
-    def OpenFromElement(self, Element):
-        """Makes any element ready to encode"""
-        if self.File:
-            self.Close()
-        self.Data = Element
-    
-    def Decode(self):
-        """Converts Bencode to element, generally dictionary"""
-        if not self.File:
-            raise BCode.BCodeError("Cannot read file")
-        self.Data = self.ReadElement()
-        return self.Data
-    
-    def Close(self):
-        if not self.File:
-            if self.Data:
-                self.Data = None
-            return
+            self.File.Close()
+        try:
+            self.File = open(Path, "rb")
+        except:
+            raise BCode.BCodeError("Access denied")
+        Element = self.ReadElement()
         self.File.close()
-        self.File = None
+        self.File = 0
+        return Element
     
-    def Encode(self, Element=None):
+    def Encode(self, Element):
         """Converts element to Bencode string"""
-        if Element == None:
-            Element = self.Data
         Type = type(Element)
         EncodedString = ""
         if Type in (dict, collections.OrderedDict):
@@ -82,7 +71,10 @@ class BCode():
         if Type != "i":
             raise BCode.BCodeError("Element is not a number")
         Number = self.ReadDigits()
-        self.ReadByte()
+        while True:
+            Byte = self.ReadByte()
+            if Byte == "e":
+                break
         return Number
     
     def ReadByteArray(self):
@@ -150,6 +142,8 @@ class BCode():
     
     def ReadByte(self, quiet=False):
         Byte = self.File.read(1)
+        if len(Byte) == 0:
+            raise BCode.BCodeError("End of file")
         if quiet:
             self.File.seek(-1, 1)
         return Byte
@@ -163,7 +157,10 @@ class BCode():
             else:
                 self.File.seek(-1, 1)
                 break
-        Digits = int(Digits)
+        try:
+            Digits = int(Digits)
+        except:
+            Digits = 0
         return Digits
     
     def DigitsGenerator(self):

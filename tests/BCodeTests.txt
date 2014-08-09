@@ -1,0 +1,44 @@
+>>> from BCode import BCode
+>>> BCoder = BCode()
+
+====================
+Test number
+
+>>> Result = BCoder.Decode("i1234567890e")
+>>> Result
+1234567890
+
+>>> Result = BCoder.Decode("i-150999e")
+>>> Result
+-150999
+
+>>> Result = BCoder.Decode("ie")
+>>> Result
+0
+
+>>> Result = BCoder.Decode("i12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890e")
+>>> Result
+12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890L
+
+>>> Result = BCoder.Decode("i1.599e")
+>>> Result
+1
+
+>>> Result = BCoder.Decode("i string e")
+>>> Result
+0
+
+>>> Result = BCoder.Encode(1234567890)
+>>> Result
+'i1234567890e'
+
+>>> Result = BCoder.Encode(-150999)
+>>> Result
+'i-150999e'
+
+====================
+Test byte array
+
+>>> Result = BCoder.Decode("5:Hello")
+>>> Result
+'Hello'

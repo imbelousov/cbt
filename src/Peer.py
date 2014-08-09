@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#! /usr/bin/python
+# -*- coding: utf-8 -*-
 
 from BCode import BCode
 from Tracker import GetTracker
@@ -9,6 +10,7 @@ import hashlib
 import time
 import threading
 import socket
+import time
 
 class Peer:
     class PeerError(CbtError):
@@ -22,6 +24,7 @@ class Peer:
         self.Tracker = GetTracker(self.Meta)
         self.PieceLength = self.Meta["info"]["piece length"]
         self.PieceHash = self.GetPieceHashes()
+        self.PieceCount = len(self.PieceHash)
         self.Peers = []
         self.ActivePeers = []
         self.Files = []
@@ -44,6 +47,9 @@ class Peer:
         self.Peers = self.GetPeers(Info["peers"])
         self.MakeFiles(Path)
         self.Handshake()
+        print self.ActivePeers
+        #TODO: Downloading
+        #print len(self.Request(self.ActivePeers[0], 0, 0, 10))
     
     def StopDownload(self):
         self.Tracker.Request(
@@ -55,6 +61,9 @@ class Peer:
             Downloaded = 0,
             Left = 0
         )
+        for Peer in self.ActivePeers:
+            Peer["connection"].close()
+        self.ActivePeers = []
     
     def MakeFiles(self, Path):
         def MakeOne(Name, Length):
@@ -68,7 +77,7 @@ class Peer:
                 File.close()
                 self.Files.append({
                     "path": Name,
-                    "length": Length
+                    "length": Length,
                 })
             except:
                 raise Peer.PeerError("Access denied")
@@ -116,11 +125,13 @@ class Peer:
                     return
                 RemoteInfoHash = Response[RemoteProtocolLength+9:RemoteProtocolLength+29]
                 RemotePeerId = Response[RemoteProtocolLength+29:RemoteProtocolLength+49]
+                RemotePeerTimestamp = int(time.time())
                 ActivePeersLock.acquire()
                 self.ActivePeers.append({
                     "ip": Peer["ip"],
                     "port": Peer["port"],
-                    "id": RemotePeerId
+                    "id": RemotePeerId,
+                    "timestamp": RemotePeerTimestamp,
                 })
                 ActivePeersLock.release()
             except:
@@ -133,6 +144,20 @@ class Peer:
         for Thread in Threads:
             Thread.join()
     
+    def Request(self, Peer, Index, Offset, Length):
+        Connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        Connection.connect((Peer["ip"], Peer["port"]))
+        Data = ""
+        Data += IntToBytes(13)
+        Data += "6"
+        Data += IntToBytes(Index)
+        Data += IntToBytes(Offset)
+        Data += IntToBytes(Length)
+        Connection.sendall(Data)
+        Result = ""
+        Connection.close()
+        return Result
+    
     def GetPeers(self, Raw):
         if type(Raw) == str:
             Peers = []
@@ -144,7 +169,7 @@ class Peer:
                 PeerPort = ord(PeerPortBytes[0])*0x100 + ord(PeerPortBytes[1])
                 Peers.append({
                     "ip": PeerIp,
-                    "port": PeerPort
+                    "port": PeerPort,
                 })
             return Peers
     
@@ -159,9 +184,7 @@ class Peer:
     
     def GetInfoHash(self):
         BCoder = BCode()
-        BCoder.OpenFromElement(self.Meta["info"])
-        InfoBCode = BCoder.Encode()
-        BCoder.Close()
+        InfoBCode = BCoder.Encode(self.Meta["info"])
         InfoHash = hashlib.sha1(InfoBCode).digest()
         return InfoHash
     

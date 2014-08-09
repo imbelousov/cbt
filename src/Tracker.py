@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#! /usr/bin/python
+# -*- coding: utf-8 -*-
 
 from HttpTrackerRequest import HttpTrackerRequest
 from UdpTrackerRequest import UdpTrackerRequest
