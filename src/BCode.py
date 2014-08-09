@@ -1,6 +1,18 @@
 #! /usr/bin/python
 # -*- coding: utf-8 -*-
 
+"""
+Bencode encoding/decoding class
+Usage: BCode().Encode(Element)
+       BCode().Decode(EncodedString)
+       BCode().DecodeFile(FileName)
+Supported element types:
+- int
+- str
+- list
+- dict / OrderedDict
+"""
+
 from Errors import CbtError
 import collections
 import os.path
@@ -27,15 +39,15 @@ class BCode():
         self.File = None
         return Element
     
-    def DecodeFile(self, Path):
+    def DecodeFile(self, FileName):
         """Converts .torrent file contents to element"""
-        IsFileExists = os.path.isfile(Path)
+        IsFileExists = os.path.isfile(FileName)
         if not IsFileExists:
             raise BCode.BCodeError("File does not exist")
         if self.File:
             self.File.close()
         try:
-            self.File = open(Path, "rb")
+            self.File = open(FileName, "rb")
         except:
             raise BCode.BCodeError("Access denied")
         Element = self.ReadElement()

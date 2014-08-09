@@ -17,6 +17,7 @@ class Peer:
         pass
 
     def __init__(self, Meta):
+        self.Azareus = "-CB0100-"
         self.Meta = Meta
         self.PeerId = self.GetId()
         self.InfoHash = self.GetInfoHash()
@@ -178,8 +179,7 @@ class Peer:
         Timestamp = time.time()
         UniqueString = "%s_%s" % (Pid, Timestamp)
         UniqueHash = hashlib.sha1(UniqueString).digest()
-        Azareus = "-CB0100-"
-        PeerId = Azareus + UniqueHash[len(Azareus):]
+        PeerId = self.Azareus + UniqueHash[len(self.Azareus):]
         return PeerId
     
     def GetInfoHash(self):
