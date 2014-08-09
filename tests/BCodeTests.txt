@@ -3,6 +3,7 @@
 
 ====================
 Test number
+Format: i<Digits>e
 
 >>> Result = BCoder.Decode("i1234567890e")
 >>> Result
@@ -24,9 +25,17 @@ Test number
 >>> Result
 1
 
->>> Result = BCoder.Decode("i string e")
+>>> Result = BCoder.Decode("i****e")
 >>> Result
 0
+
+>>> BCoder.Decode("i1234")
+Traceback (most recent call last):
+BCodeError: End of file
+
+>>> BCoder.Decode("i")
+Traceback (most recent call last):
+BCodeError: End of file
 
 >>> Result = BCoder.Encode(1234567890)
 >>> Result
@@ -38,7 +47,52 @@ Test number
 
 ====================
 Test byte array
+Format: <Array Size>:<Array Bytes>
 
 >>> Result = BCoder.Decode("5:Hello")
 >>> Result
 'Hello'
+
+>>> Result = BCoder.Decode("3:Hello")
+>>> Result
+'Hel'
+
+>>> Result = BCoder.Decode("0:")
+>>> Result
+''
+
+>>> BCoder.Decode("6:Hello")
+Traceback (most recent call last):
+BCodeError: End of file
+
+>>> BCoder.Decode("100")
+Traceback (most recent call last):
+BCodeError: End of file
+
+>>> Result = BCoder.Encode("Hello")
+>>> Result
+'5:Hello'
+
+>>> Result = BCoder.Encode("")
+>>> Result
+'0:'
+
+>>> Result = BCoder.Encode("5")
+>>> Result
+'1:5'
+
+====================
+Test list
+Format: l<Elements>e
+
+>>> Result = BCoder.Decode("li125ei-250ei1000e7:Docteste")
+>>> Result
+[125, -250, 1000, 'Doctest']
+
+>>> Result = BCoder.Decode("le")
+>>> Result
+[]
+
+>>> Result = BCoder.Decode("l****e")
+>>> Result
+[]
