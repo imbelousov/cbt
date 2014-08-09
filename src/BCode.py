@@ -11,6 +11,7 @@ Supported element types:
 - str
 - list
 - dict / OrderedDict
+Notice: strongly recommend to use OrderedDict instead dict
 """
 
 from Errors import CbtError

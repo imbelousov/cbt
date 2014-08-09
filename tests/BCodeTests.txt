@@ -114,3 +114,8 @@ BCodeError: Element is not a byte array
 >>> BCoder.Decode("d11:Nested dictd11:Nested dictd11:Nested dictd11:Nested dictdeeeee")
 OrderedDict([('Nested dict', OrderedDict([('Nested dict', OrderedDict([('Nested dict', OrderedDict([('Nested dict', OrderedDict())]))]))]))])
 
+>>> BCoder.Decode("d3:inti100e3:str6:String4:listli1ei2ei3ee4:dictd1:a3:abc1:b3:asdee")
+OrderedDict([('int', 100), ('str', 'String'), ('list', [1, 2, 3]), ('dict', OrderedDict([('a', 'abc'), ('b', 'asd')]))])
+
+>>> BCoder.Encode({"Key": "Value"})
+'d3:Key5:Valuee'
