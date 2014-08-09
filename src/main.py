@@ -1,5 +1,4 @@
 #! /usr/bin/python
-# -*- coding: utf-8 -*-
 
 """
 Console Bit Torrent Client
@@ -7,13 +6,14 @@ Console Bit Torrent Client
 
 import doctest
 import os
+
 from BCode import BCode
 from Peer import Peer
 
 def Main():
     Meta = BCode().DecodeFile("2.torrent")
-    Me = Peer(Meta)
-    Me.StartDownload(r"D:\Tests")
+    Me = Peer()
+#    Me.StartDownload(r"D:\Tests")
 
 def Test():
     Tests = [
