@@ -18,7 +18,7 @@ class BCode():
         if type(EncodedString) != str:
             return None
         if self.File:
-            self.File.Close()
+            self.File.close()
         self.File = cStringIO.StringIO()
         self.File.write(EncodedString)
         self.File.seek(0)
@@ -33,7 +33,7 @@ class BCode():
         if not IsFileExists:
             raise BCode.BCodeError("File does not exist")
         if self.File:
-            self.File.Close()
+            self.File.close()
         try:
             self.File = open(Path, "rb")
         except:
@@ -101,6 +101,9 @@ class BCode():
             if Byte == "e":
                 break
             Element = self.ReadElement()
+            if Element == None:
+                self.ReadByte()
+                continue
             List.append(Element)
         self.ReadByte()
         return List
@@ -140,11 +143,11 @@ class BCode():
         else:
             return None
     
-    def ReadByte(self, quiet=False):
+    def ReadByte(self, Quiet=False):
         Byte = self.File.read(1)
         if len(Byte) == 0:
             raise BCode.BCodeError("End of file")
-        if quiet:
+        if Quiet:
             self.File.seek(-1, 1)
         return Byte
     
