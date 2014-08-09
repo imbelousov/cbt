@@ -193,7 +193,7 @@ class Peer:
             Sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             Result = Sock.connect_ex(('127.0.0.1', Port))
             Sock.close()
-            return False if Result == 0 else True
+            return Result != 0
         for Port in xrange(Start, End):
             if CheckPort(Port):
                 return Port
