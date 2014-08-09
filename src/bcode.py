@@ -1,8 +1,7 @@
 #! /usr/bin/python
-# -*- coding: utf-8 -*-
 
 """
-Bencode encoding/decoding class
+Bencode encoding/decoding class.
 Usage: BCode().Encode(Element)
        BCode().Decode(EncodedString)
        BCode().DecodeFile(FileName)
@@ -11,23 +10,30 @@ Supported element types:
 - str
 - list
 - dict / OrderedDict
-Notice: strongly recommend to use OrderedDict instead dict
+Notice: strongly recommend to use OrderedDict instead dict.
 """
 
-from Errors import CbtError
 import collections
-import os.path
 import cStringIO
+import os.path
 
+from Errors import CbtError
+
+__all__ = [
+    "BCode",
+]
+
+class BCodeError(CbtError):
+    pass
+
+    
 class BCode():
-    class BCodeError(CbtError):
-        pass
 
     def __init__(self):
         self.File = None
     
     def Decode(self, EncodedString):
-        """Converts Bencode to element, generally dictionary"""
+        """Converts bencode to element, generally dictionary"""
         if type(EncodedString) != str:
             return None
         if self.File:
@@ -44,20 +50,20 @@ class BCode():
         """Converts .torrent file contents to element"""
         IsFileExists = os.path.isfile(FileName)
         if not IsFileExists:
-            raise BCode.BCodeError("File does not exist")
+            raise BCodeError("File does not exist")
         if self.File:
             self.File.close()
         try:
             self.File = open(FileName, "rb")
         except:
-            raise BCode.BCodeError("Access denied")
+            raise BCodeError("Access denied")
         Element = self.ReadElement()
         self.File.close()
         self.File = 0
         return Element
     
     def Encode(self, Element):
-        """Converts element to Bencode string"""
+        """Converts element to bencode string"""
         Type = type(Element)
         EncodedString = ""
         if Type in (dict, collections.OrderedDict):
@@ -82,7 +88,7 @@ class BCode():
         """Format: i<Digits>e"""
         Type = self.ReadByte()
         if Type != "i":
-            raise BCode.BCodeError("Element is not a number")
+            raise BCodeError("Element is not a number")
         Number = self.ReadDigits()
         while True:
             Byte = self.ReadByte()
@@ -94,7 +100,7 @@ class BCode():
         """Format: <Array Size>:<Array Bytes>"""
         Type = self.ReadByte(True)
         if not Type in self.DigitsGenerator():
-            raise BCode.BCodeError("Element is not a byte array")
+            raise BCodeError("Element is not a byte array")
         Size = self.ReadDigits()
         self.ReadByte()
         ByteArray = ""
@@ -107,7 +113,7 @@ class BCode():
         """Format: l<Elements>e"""
         Type = self.ReadByte()
         if Type != "l":
-            raise BCode.BCodeError("Element is not a list")
+            raise BCodeError("Element is not a list")
         List = []
         while True:
             Byte = self.ReadByte(True)
@@ -126,7 +132,7 @@ class BCode():
            Element: <Byte Array><Element>"""
         Type = self.ReadByte()
         if Type != "d":
-            raise BCode.BCodeError("Element is not a dictionary")
+            raise BCodeError("Element is not a dictionary")
         Dictionary = collections.OrderedDict()
         while True:
             Byte = self.ReadByte(True)
@@ -155,7 +161,7 @@ class BCode():
     def ReadByte(self, Quiet=False):
         Byte = self.File.read(1)
         if len(Byte) == 0:
-            raise BCode.BCodeError("End of file")
+            raise BCodeError("End of file")
         if Quiet:
             self.File.seek(-1, 1)
         return Byte
