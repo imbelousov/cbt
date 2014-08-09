@@ -5,28 +5,22 @@
 Test number
 Format: i<Digits>e
 
->>> Result = BCoder.Decode("i1234567890e")
->>> Result
+>>> BCoder.Decode("i1234567890e")
 1234567890
 
->>> Result = BCoder.Decode("i-150999e")
->>> Result
+>>> BCoder.Decode("i-150999e")
 -150999
 
->>> Result = BCoder.Decode("ie")
->>> Result
+>>> BCoder.Decode("ie")
 0
 
->>> Result = BCoder.Decode("i12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890e")
->>> Result
+>>> BCoder.Decode("i12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890e")
 12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890L
 
->>> Result = BCoder.Decode("i1.599e")
->>> Result
+>>> BCoder.Decode("i1.599e")
 1
 
->>> Result = BCoder.Decode("i****e")
->>> Result
+>>> BCoder.Decode("i****e")
 0
 
 >>> BCoder.Decode("i1234")
@@ -37,28 +31,23 @@ BCodeError: End of file
 Traceback (most recent call last):
 BCodeError: End of file
 
->>> Result = BCoder.Encode(1234567890)
->>> Result
+>>> BCoder.Encode(1234567890)
 'i1234567890e'
 
->>> Result = BCoder.Encode(-150999)
->>> Result
+>>> BCoder.Encode(-150999)
 'i-150999e'
 
 ====================
 Test byte array
 Format: <Array Size>:<Array Bytes>
 
->>> Result = BCoder.Decode("5:Hello")
->>> Result
+>>> BCoder.Decode("5:Hello")
 'Hello'
 
->>> Result = BCoder.Decode("3:Hello")
->>> Result
+>>> BCoder.Decode("3:Hello")
 'Hel'
 
->>> Result = BCoder.Decode("0:")
->>> Result
+>>> BCoder.Decode("0:")
 ''
 
 >>> BCoder.Decode("6:Hello")
@@ -69,52 +58,42 @@ BCodeError: End of file
 Traceback (most recent call last):
 BCodeError: End of file
 
->>> Result = BCoder.Encode("Hello")
->>> Result
+>>> BCoder.Encode("Hello")
 '5:Hello'
 
->>> Result = BCoder.Encode("")
->>> Result
+>>> BCoder.Encode("")
 '0:'
 
->>> Result = BCoder.Encode("5")
->>> Result
+>>> BCoder.Encode("5")
 '1:5'
 
 ====================
 Test list
 Format: l<Elements>e
 
->>> Result = BCoder.Decode("li125ei-250ei1000e7:Docteste")
->>> Result
+>>> BCoder.Decode("li125ei-250ei1000e7:Docteste")
 [125, -250, 1000, 'Doctest']
 
->>> Result = BCoder.Decode("le")
->>> Result
+>>> BCoder.Decode("le")
 []
 
->>> Result = BCoder.Decode("l****e")
->>> Result
+>>> BCoder.Decode("l****e")
 []
 
 >>> BCoder.Decode("li25e")
 Traceback (most recent call last):
 BCodeError: End of file
 
->>> Result = BCoder.Decode("l10:Matrix 3x3li1ei2ei3eeli4ei5ei6eeli7ei8ei9eee")
->>> Result
+>>> BCoder.Decode("l10:Matrix 3x3li1ei2ei3eeli4ei5ei6eeli7ei8ei9eee")
 ['Matrix 3x3', [1, 2, 3], [4, 5, 6], [7, 8, 9]]
 
->>> Result = BCoder.Encode([1, 2, 3, 4, 5, "a", "b", "c", [6, 7, 8]])
->>> Result
+>>> BCoder.Encode([1, 2, 3, 4, 5, "a", "b", "c", [6, 7, 8]])
 'li1ei2ei3ei4ei5e1:a1:b1:cli6ei7ei8eee'
 
->>> Result = BCoder.Encode([])
->>> Result
+>>> BCoder.Encode([])
 'le'
 
->>> Result = BCoder.Encode([[[[[[[[[["10 nested lists"]]]]]]]]]])
->>> Result
+>>> BCoder.Encode([[[[[[[[[["10 nested lists"]]]]]]]]]])
 'llllllllll15:10 nested listseeeeeeeeee'
 
 ====================
@@ -122,6 +101,16 @@ Test dictionary
 Format: d<Dictionary Elements>e
 Element: <Byte Array><Element>
 
->>> Result = BCoder.Decode("d1:a5:aaaaa1:b6:bbbbbbe")
->>> Result
+>>> BCoder.Decode("d1:a5:aaaaa1:b6:bbbbbbe")
 OrderedDict([('a', 'aaaaa'), ('b', 'bbbbbb')])
+
+>>> BCoder.Decode("de")
+OrderedDict()
+
+>>> BCoder.Decode("di5ei6ee")
+Traceback (most recent call last):
+BCodeError: Element is not a byte array
+
+>>> BCoder.Decode("d11:Nested dictd11:Nested dictd11:Nested dictd11:Nested dictdeeeee")
+OrderedDict([('Nested dict', OrderedDict([('Nested dict', OrderedDict([('Nested dict', OrderedDict([('Nested dict', OrderedDict())]))]))]))])
+
