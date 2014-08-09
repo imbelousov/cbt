@@ -109,6 +109,14 @@ BCodeError: End of file
 >>> Result
 'li1ei2ei3ei4ei5e1:a1:b1:cli6ei7ei8eee'
 
+>>> Result = BCoder.Encode([])
+>>> Result
+'le'
+
+>>> Result = BCoder.Encode([[[[[[[[[["10 nested lists"]]]]]]]]]])
+>>> Result
+'llllllllll15:10 nested listseeeeeeeeee'
+
 ====================
 Test dictionary
 Format: d<Dictionary Elements>e

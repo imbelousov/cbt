@@ -183,8 +183,7 @@ class Peer:
         return PeerId
     
     def GetInfoHash(self):
-        BCoder = BCode()
-        InfoBCode = BCoder.Encode(self.Meta["info"])
+        InfoBCode = BCode().Encode(self.Meta["info"])
         InfoHash = hashlib.sha1(InfoBCode).digest()
         return InfoHash
     

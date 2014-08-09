@@ -11,8 +11,7 @@ from BCode import BCode
 from Peer import Peer
 
 def Main():
-    BCoder = BCode()
-    Meta = BCoder.DecodeFile("2.torrent")
+    Meta = BCode().DecodeFile("2.torrent")
     Me = Peer(Meta)
     Me.StartDownload(r"D:\Tests")
 

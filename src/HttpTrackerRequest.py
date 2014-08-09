@@ -29,9 +29,8 @@ class HttpTrackerRequest(TrackerRequest):
         UrlParams = urllib.urlencode(Get)
         Url += UrlParams
         Response = urllib2.urlopen(Url).read()
-        BCoder = BCode()
         try:
-            Result = BCoder.Decode(Response)
+            Result = BCode().Decode(Response)
         except:
             Result = None
         return Result
