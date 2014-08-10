@@ -7,28 +7,24 @@ Console Bit Torrent Client
 import doctest
 import os
 
-from BCode import BCode
-from Peer import Peer
+import bcode
 
-def Main():
-    Meta = BCode().DecodeFile("2.torrent")
-    Me = Peer()
-#    Me.StartDownload(r"D:\Tests")
+def main():
+    with open("1.torrent", "rb") as file:
+        contents = file.read()
+    meta = bcode.decode(contents)
+    print meta
 
-def Test():
-    Tests = [
-        "BCodeTests.txt",
-    ]
-    Path = [
-        "..",
-        "tests",
-    ]
-    for Test in Tests:
-        _Path = Path[:]
-        _Path.append(Test)
-        _PathStr = os.sep.join(_Path)
-        doctest.testfile(_PathStr)
+def test():
+    tests = ["test_bcode.txt"]
+    path = ["..", "tests"]
+    # Reserved for test name
+    path.append("")
+    for test in tests:
+        path[-1] = test
+        file_name = os.sep.join(path)
+        doctest.testfile(file_name)
     
 if __name__ == "__main__":
-    Test()
-    Main()
+    test()
+    main()
