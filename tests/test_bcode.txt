@@ -24,11 +24,11 @@ Format: i<Digits>e
 
 >>> bcode.decode("i1234")
 Traceback (most recent call last):
-BCodeError: End of file
+ValueError: Invalid bencode string
 
 >>> bcode.decode("i")
 Traceback (most recent call last):
-BCodeError: End of file
+ValueError: Invalid bencode string
 
 >>> bcode.encode(1234567890)
 'i1234567890e'
@@ -51,11 +51,11 @@ Format: <Array Size>:<Array Bytes>
 
 >>> bcode.decode("6:Hello")
 Traceback (most recent call last):
-BCodeError: End of file
+ValueError: Invalid bencode string
 
 >>> bcode.decode("100")
 Traceback (most recent call last):
-BCodeError: End of file
+ValueError: Invalid bencode string
 
 >>> bcode.encode("Hello")
 '5:Hello'
@@ -81,7 +81,7 @@ Format: l<Elements>e
 
 >>> bcode.decode("li25e")
 Traceback (most recent call last):
-BCodeError: End of file
+ValueError: Invalid bencode string
 
 >>> bcode.decode("l10:Matrix 3x3li1ei2ei3eeli4ei5ei6eeli7ei8ei9eee")
 ['Matrix 3x3', [1, 2, 3], [4, 5, 6], [7, 8, 9]]
@@ -108,7 +108,7 @@ OrderedDict()
 
 >>> bcode.decode("di5ei6ee")
 Traceback (most recent call last):
-BCodeError: Element is not a byte array
+ValueError: Invalid bencode string
 
 >>> bcode.decode("d11:Nested dictd11:Nested dictd11:Nested dictd11:Nested dictdeeeee")
 OrderedDict([('Nested dict', OrderedDict([('Nested dict', OrderedDict([('Nested dict', OrderedDict([('Nested dict', OrderedDict())]))]))]))])
