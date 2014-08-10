@@ -75,6 +75,7 @@ class UDPTracker(Tracker):
     def request(self, info_hash, peer_id, my_port, uploaded, downloaded, left, event):
         return None
 
+
 def create(meta):
     """Returns an instance of appropriate tracker class"""
     tracker_types = {
