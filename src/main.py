@@ -8,12 +8,12 @@ import doctest
 import os
 
 import bcode
+import tracker
 
 def main():
     with open("1.torrent", "rb") as file:
         contents = file.read()
     meta = bcode.decode(contents)
-    print meta
 
 def test():
     tests = ["test_bcode.txt"]

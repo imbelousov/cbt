@@ -18,6 +18,7 @@ import os.path
 
 __all__ = ["encode", "decode"]
 
+
 class BCodeStringIO(StringIO.StringIO):
     """Raises error if EOF"""
     def read(self, n=-1):
@@ -25,7 +26,7 @@ class BCodeStringIO(StringIO.StringIO):
         if len(r) != n:
             self.err()
         return r
-    
+
     def err(self):
         raise ValueError("Invalid bencode string")
 
@@ -39,15 +40,18 @@ def encode(element):
         dict: encode_dict,
         collections.OrderedDict: encode_dict
     }
-    if not element_type in switch:
+    if element_type not in switch:
         return ""
     return switch[element_type](element)
+
 
 def encode_int(int_val):
     return "i%de" % int_val
 
+
 def encode_str(str_val):
     return "%d:%s" % (len(str_val), str_val)
+
 
 def encode_list(list_obj):
     encoded_list = ""
@@ -55,6 +59,7 @@ def encode_list(list_obj):
         encoded_element = encode(element)
         encoded_list = "".join((encoded_list, encoded_element))
     return "l%se" % encoded_list
+
 
 def encode_dict(dict_obj):
     encoded_dict = ""
@@ -66,11 +71,13 @@ def encode_dict(dict_obj):
         encoded_dict = "".join((encoded_dict, encoded_key, encoded_value))
     return "d%se" % encoded_dict
 
+
 def decode(string):
     stream = BCodeStringIO(string)
     element = read_element(stream)
     stream.close()
     return element
+
 
 def read_element(stream):
     """Automatic type recognizing"""
@@ -79,13 +86,14 @@ def read_element(stream):
     switch = dict({
         "i": read_int,
         "l": read_list,
-        "d": read_dict }, **{
-        digit: read_str
-            for digit in digits()
+        "d": read_dict
+    }, **{
+        digit: read_str for digit in digits()
     })
-    if not byte in switch:
+    if byte not in switch:
         return None
     return switch[byte](stream)
+
 
 def read_int(stream):
     """Format: i<digits>e"""
@@ -100,6 +108,7 @@ def read_int(stream):
             break
     return int_val
 
+
 def read_str(stream):
     """Format: <length (only digits)>:<string>"""
     str_val_len = read_number(stream)
@@ -108,6 +117,7 @@ def read_str(stream):
         stream.err()
     str_val = stream.read(str_val_len)
     return str_val
+
 
 def read_list(stream):
     """Format: l<element 1><element 2>...<element n>e"""
@@ -121,14 +131,16 @@ def read_list(stream):
             break
         stream.seek(-1, 1)
         element = read_element(stream)
-        if element == None:
+        if element is None:
             stream.read(1)
             continue
         list_obj.append(element)
     return list_obj
 
+
 def read_dict(stream):
-    """Format: d<dict_element 1><dict_element 2>...<dict_element n>e ; dict_element: <str><element>"""
+    """Format: d<dict_element 1><dict_element 2>...<dict_element n>e ;
+       dict_element: <str><element>"""
     byte = stream.read(1)
     if byte != "d":
         stream.err()
@@ -143,12 +155,13 @@ def read_dict(stream):
         dict_obj.update({key: value})
     return dict_obj
 
+
 def read_number(stream):
     """Reads pure digits from stream"""
     string = ""
     while True:
         byte = stream.read(1)
-        if not byte in digits():
+        if byte not in digits():
             break
         string = "".join((string, byte))
     stream.seek(-1, 1)
@@ -156,7 +169,8 @@ def read_number(stream):
         return 0
     return int(string)
 
+
 def digits():
     for x in xrange(10):
         yield str(x)
-    yield "-"    
+    yield "-"

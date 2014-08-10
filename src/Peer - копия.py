@@ -1,10 +1,5 @@
 #! /usr/bin/python
-# -*- coding: utf-8 -*-
 
-from BCode import BCode
-from Tracker import GetTracker
-from Errors import CbtError
-from Net import CharToBytes, IntToBytes, BytesToChar, BytesToInt
 import os
 import hashlib
 import time
@@ -12,7 +7,19 @@ import threading
 import socket
 import time
 
-class Peer:
+from BCode import BCode
+from Errors import CbtError
+from Net import CharToBytes, IntToBytes, BytesToChar, BytesToInt
+from Tracker import GetTracker
+
+__all__ = [
+    "Peer",
+]
+
+class Peer():
+    pass
+
+"""class Peer:
     class PeerError(CbtError):
         pass
 
@@ -86,13 +93,13 @@ class Peer:
         if Path[-1] != os.sep:
             Path += os.sep
         if "files" in self.Meta["info"]:
-            """Multiple file mode"""
+            \"""Multiple file mode\"""
             for File in self.Meta["info"]["files"]:
                 FileLength = File["length"]
                 FileName = Path + os.pathsep.join(File["path"])
                 MakeOne(FileName, FileLength)
         elif "name" in self.Meta["info"] and "length" in self.Meta["info"]:
-            """Single file mode"""
+            \"""Single file mode\"""
             FileName = Path + self.Meta["info"]["name"]
             FileLength = self.Meta["info"]["length"]
             MakeOne(FileName, FileLength)
@@ -204,3 +211,4 @@ class Peer:
         for i in xrange(0, len(HashesRaw), 20):
             Hashes.append(HashesRaw[i:i+20])
         return Hashes
+"""

@@ -1,7 +1,13 @@
 #! /usr/bin/python
-# -*- coding: utf-8 -*-
 
 from Errors import CbtError
+
+__all__ = [
+    "CharToBytes",
+    "IntToBytes",
+    "BytesToChar",
+    "BytesToInt",
+]
 
 class NetError(CbtError):
     def __init__(self, Error):

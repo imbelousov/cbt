@@ -1,10 +1,14 @@
 #! /usr/bin/python
-# -*- coding: utf-8 -*-
 
-from TrackerRequest import TrackerRequest
-from BCode import BCode
 import urllib
 import urllib2
+
+from BCode import BCode
+from TrackerRequest import TrackerRequest
+
+__all__ = [
+    "HttpTrackerRequest",
+]
 
 class HttpTrackerRequest(TrackerRequest):
     def __init__(self, Host):

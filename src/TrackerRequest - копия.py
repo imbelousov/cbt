@@ -1,7 +1,10 @@
 #! /usr/bin/python
-# -*- coding: utf-8 -*-
 
 import abc
+
+__all__ = [
+    "TrackerRequest",
+]
 
 class TrackerRequest():
     __metaclass__ = abc.ABCMeta

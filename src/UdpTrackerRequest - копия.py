@@ -1,7 +1,10 @@
 #! /usr/bin/python
-# -*- coding: utf-8 -*-
 
 from TrackerRequest import TrackerRequest
+
+__all__ = [
+    "UdpTrackerRequest",
+]
 
 class UdpTrackerRequest(TrackerRequest):
     def __init__(self, Host, Info):
