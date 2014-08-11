@@ -2,6 +2,8 @@
 
 import os
 
+__all__ = ["File"]
+
 class File(object):
     def __init__(self, name, path, length):
         if path[-1] == os.sep:
