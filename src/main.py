@@ -7,15 +7,13 @@ Console Bit Torrent Client
 import doctest
 import os
 
-import peer
-import tracker
+import client
 
 def main():
-    me = peer.Peer()
-    with open("1.torrent", "rb") as file:
-        contents = file.read()
-    me.add_torrent(contents, "D:\\Tests")
-    me.start(0)
+    c = client.Client()
+    c.append_torrent("1.torrent", "D:\\Tests")
+    c.get_torrent(0).stop()
+    c.get_torrent(0).start()
 
 def test():
     tests = ["test_bcode.txt"]

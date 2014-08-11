@@ -19,7 +19,7 @@ class Tracker(object):
         self.host = host
 
     @abc.abstractmethod
-    def request(self, info_hash, peer_id, my_port, uploaded, downloaded, left, event):
+    def request(self, info_hash, peer_id, port, uploaded, downloaded, left, event):
         pass
 
     def is_available(self):
@@ -44,7 +44,7 @@ class Tracker(object):
 class HTTPTracker(Tracker):
     DEFAULT_PORT = 80
 
-    def request(self, info_hash, peer_id, my_port, uploaded, downloaded, left, event):
+    def request(self, info_hash, peer_id, port, uploaded, downloaded, left, event):
         url = self.host
         sep = "?"
         if sep in url:
@@ -53,7 +53,7 @@ class HTTPTracker(Tracker):
         get_dict.update({
             "info_hash": info_hash,
             "peer_id": peer_id,
-            "port": my_port,
+            "port": port,
             "uploaded": uploaded,
             "downloaded": downloaded,
             "left": left,
@@ -73,11 +73,11 @@ class HTTPTracker(Tracker):
 class UDPTracker(Tracker):
     DEFAULT_PORT = 2710
 
-    def request(self, info_hash, peer_id, my_port, uploaded, downloaded, left, event):
+    def request(self, info_hash, peer_id, port, uploaded, downloaded, left, event):
         return None
 
 
-def create(meta):
+def get(meta):
     """Returns an instance of appropriate tracker class"""
     tracker_types = {
         "http": HTTPTracker,
