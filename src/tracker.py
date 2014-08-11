@@ -2,6 +2,7 @@
 
 import abc
 import urllib
+import urllib2
 import re
 import socket
 
@@ -22,7 +23,7 @@ class Tracker(object):
         pass
 
     def is_available(self):
-        pattern = re.compile("^[a-z]+://([a-z0-9.\-]+):?([0-9]*)")
+        pattern = re.compile("^[a-z]+://([a-z0-9.\-]+):?([0-9]*)/?")
         info = pattern.split(self.host)
         address = info[1]
         port = info[2]
@@ -50,7 +51,7 @@ class HTTPTracker(Tracker):
             sep = "&"
         get_dict = {}
         get_dict.update({
-            "info_hash": self.info_hash,
+            "info_hash": info_hash,
             "peer_id": peer_id,
             "port": my_port,
             "uploaded": uploaded,
