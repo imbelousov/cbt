@@ -32,7 +32,7 @@ class Peer(object):
         self.active = False
         self.timestamp = 0
         self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.conn.settimeout(5)
+        self.conn.settimeout(2)
         self.protocol = "BitTorrent protocol"
 
     def connect(self):
@@ -42,17 +42,22 @@ class Peer(object):
             self.send_handshake()
             self.recv_handshake()
             self.active = True
-        except:
+        except IOError, e:
             self.close()
-        try:
-            self.read_response()
-        except:
-            pass
+            return
+        self.read_response()
 
     def close(self):
         """Close the connection and make peer inactive."""
         self.conn.close()
         self.active = False
+
+    def is_available(self, piece):
+        return (
+            len(self.bitfield) > piece
+            and self.bitfield[piece]
+            and self.active
+        )
 
     def send_handshake(self):
         """The first message transmitted by client."""
@@ -87,23 +92,28 @@ class Peer(object):
 
     def read_response(self):
         """Detect message type and call appropriate handler."""
-        buf = self.recv(4)
-        message_len = convert.uint_ord(buf)
-        if message_len == 0:
-            #Todo: keep alive
+        try:
+            buf = self.recv(4)
+            message_len = convert.uint_ord(buf)
+            if message_len == 0:
+                #Todo: keep alive
+                pass
+            buf = self.recv(1)
+            message_type = convert.uint_ord(buf)
+            buf = self.recv(message_len - 1)
+            switch = {
+                0: self.read_choke,
+                1: self.read_unchoke,
+                2: self.read_interested,
+                3: self.read_notinterested,
+                4: self.read_have,
+                5: self.read_bitfield
+            }
+            if message_type in switch:
+                switch[message_type](buf, message_len - 1)
+            self.read_response()
+        except IOError, e:
             pass
-        buf = self.recv(1)
-        message_type = convert.uint_ord(buf)
-        buf = self.conn.recv(message_len - 1)
-        switch = {
-            0: self.read_choke,
-            1: self.read_unchoke,
-            2: self.read_interested,
-            3: self.read_notinterested,
-            5: self.read_bitfield
-        }
-        if message_type in switch:
-            switch[message_type](buf, message_len - 1)
 
     def read_choke(self, buf, length):
         if length != 1:
@@ -125,6 +135,13 @@ class Peer(object):
             self.close()
         self.c_interested = False
 
+    def read_have(self, buf, length):
+        if length != 4:
+            self.close()
+        index = convert.uint_ord(buf)
+        if index < len(self.bitfield):
+            self.bitfield[index] = True
+
     def read_bitfield(self, buf, length):
         """Handle raw bitfield data and fill bitfield list.
         
@@ -138,9 +155,6 @@ class Peer(object):
                 bit = bool(byte & mask)
                 mask >>= 1
                 self.bitfield.append(bit)
-        missed = (length - len(buf))*8
-        for _ in xrange(missed):
-            self.bitfield.append(False)
 
     def write_choke(self):
         buf = "".join((
@@ -181,8 +195,14 @@ class Peer(object):
 
     def recv(self, length):
         """Try to receive n bytes from peer ; remember the time if it was successful."""
-        bytes = self.conn.recv(length)
-        if len(bytes) != length:
-            raise IOError("End of stream")
+        bytes = ""
+        while len(bytes) != length:
+            try:
+                buf = self.conn.recv(length - len(bytes))
+                bytes = "".join((bytes, buf))
+            except socket.timeout:
+                buf = ""
+            if len(buf) == 0:
+                raise IOError("End of stream")
         self.timestamp = time.time()
         return bytes

@@ -35,7 +35,8 @@ class Torrent(object):
         for p_thread in p_threads:
             p_thread.join()
         for p in self.peers:
-            pass
+            if p.is_available(0):
+                pass
 
     def stop(self):
         self.tracker.request(
