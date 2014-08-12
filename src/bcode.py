@@ -105,8 +105,9 @@ def _read_element(stream):
 
 def _read_int(stream):
     """Read whole bencode string from the stream ; convert it to integer.
-    
+
     Format: i<digits>e
+
     """
     byte = stream.read(1)
     if byte != "i":
