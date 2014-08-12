@@ -11,7 +11,7 @@ import client
 
 def main():
     c = client.Client()
-    c.append_torrent("1.torrent", "D:\\Tests")
+    c.append_torrent("2.torrent", "D:\\Tests")
     c.get_torrent(0).stop()
     c.get_torrent(0).start()
 

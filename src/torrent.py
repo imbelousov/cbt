@@ -35,11 +35,14 @@ class Torrent(object):
         for p_thread in p_threads:
             p_thread.join()
         for p in self.peers:
-            if not p.active:
+            if (
+                not p.active
+                or len(p.bitfield) == 0
+                or not p.bitfield[0]
+            ):
                 continue
-            if not p.bitfield[0]:
-                continue
-            p.get_piece(0, 0, self.meta["info"]["piece length"])
+            print p.ip
+            #p.get_piece(0, 0, self.meta["info"]["piece length"])
             break
 
     def stop(self):
@@ -55,9 +58,14 @@ class Torrent(object):
 
     def load_files(self):
         if "files" in self.meta["info"]:
+            # Multifile mode
             for file_info in self.meta["info"]["files"]:
                 f = file.File(file_info["path"], self.path, file_info["length"])
                 self.files.append(f)
+        elif "name" and "length" in self.meta["info"]:
+            # Singlefile mode
+            f = file.File(self.meta["info"]["name"], self.path, self.meta["info"]["length"])
+            self.files.append(f)
 
     def load_peers(self):
         t_info = self.tracker.request(
@@ -71,9 +79,9 @@ class Torrent(object):
         )
         if type(t_info["peers"]) is str:
             p_bytes = t_info["peers"]
-            for i in xrange(0, len(p_bytes), 6):
-                p_ip = ".".join([str(ord(byte)) for byte in p_bytes[i+0:i+4]])
-                p_port = convert.uint_ord(p_bytes[i+4:i+6])
+            for x in xrange(0, len(p_bytes), 6):
+                p_ip = ".".join([str(ord(byte)) for byte in p_bytes[x+0:x+4]])
+                p_port = convert.uint_ord(p_bytes[x+4:x+6])
                 p_info_hash = self.info_hash
                 p_my_id = self.my_id
                 self.peers.append(peer.Peer(p_ip, p_port, p_info_hash, p_my_id))

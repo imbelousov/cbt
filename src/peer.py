@@ -50,9 +50,6 @@ class Peer(object):
 
         BitTorrent v1.0 pstr is "BitTorrent protocol".
 
-        Prefix p_ means received data from peer.
-        Postfix _b means raw bytes array.
-
         Bitfield message reports pieces are available
         for download from this peer.
 
@@ -63,6 +60,7 @@ class Peer(object):
 
         """
         protocol = "BitTorrent protocol"
+        # Send hello string
         buf = "".join((
             chr(len(protocol)),
             protocol,
@@ -71,46 +69,113 @@ class Peer(object):
             self.my_id
         ))
         self.send(buf)
-        p_pstr_len_b = self.recv(1)
-        p_pstr_len = convert.uint_ord(p_pstr_len_b)
-        if p_pstr_len != len(protocol):
+        # Get and check length of peer protocol string
+        buf = self.recv(1)
+        pstr_len = convert.uint_ord(buf)
+        if pstr_len != len(protocol):
             raise IOError("Unknown protocol")
-        p_pstr = self.recv(p_pstr_len)
-        if p_pstr != protocol:
+        # Get and check peer protocol string
+        pstr = self.recv(pstr_len)
+        if pstr != protocol:
             raise IOError("Unknown protocol")
+        # Reserved bytes
         self.recv(8)
-        p_info_hash = self.recv(20)
-        if p_info_hash != self.info_hash:
+        # Get and check info hash
+        info_hash = self.recv(20)
+        if info_hash != self.info_hash:
             raise IOError("Torrents are not the same")
-        p_id = self.recv(20)
-        self.id = p_id
+        # Get and save peer id
+        id = self.recv(20)
+        self.id = id
+        # Toggle connection status to active
         self.active = True
+        # Try to get bitfield message length
         try:
-            p_bitfieldlen_b = self.recv(4)
+            buf = self.recv(4)
         except:
             return
-        p_bitfield_len = convert.uint_ord(p_bitfieldlen_b) - 1
-        p_mid_b = self.recv(1)
-        p_mid = convert.uint_ord(p_mid_b)
-        if p_mid != 5:
+        bitfield_len = convert.uint_ord(buf) - 1
+        # Get message id (5 for bitfield message)
+        buf = self.recv(1)
+        message_id = convert.uint_ord(buf)
+        if message_id != 5:
             raise IOError("Unknown protocol")
-        p_payload = self.conn.recv(p_bitfield_len)
+        # Get bitfield and fill a list of bits
+        bitfield = self.conn.recv(bitfield_len)
         self.bitfield = []
-        for byte in p_payload:
+        for byte in bitfield:
             byte = convert.uint_ord(byte)
             mask = 0x80
-            for i in xrange(8):
+            for _ in xrange(8):
                 bit = bool(byte & mask)
                 mask >>= 1
                 self.bitfield.append(bit)
-        p_bitfield_miss = p_bitfield_len*8 - len(self.bitfield)
-        for i in xrange(p_bitfield_miss):
+        bitfield_miss = bitfield_len*8 - len(self.bitfield)
+        for _ in xrange(bitfield_miss):
             self.bitfield.append(False)
 
-    def choke(self):
-        data = None
+    def read_bitfield(self, buf, length):
+        """Read raw bitfield data and fill bitfield list.
+        
+        Bitfield message represents which pieces are ready to download from the peer.
+        """
+        self.bitfield = []
+        for byte in buf:
+            byte = convert.uint_ord(byte)
+            mask = 0x80
+            for _ in xrange(8):
+                bit = bool(byte & mask)
+                mask >>= 1
+                self.bitfield.append(bit)
+        missed = (length - len(buf))*8
+        for _ in xrange(missed):
+            self.bitfield.append(False)
 
-"""    def get_piece(self, index, begin, length):
+    """def choke(self):
+        \"""Block this peer by client.\"""
+        if self.choked:
+            return
+        buf = "".join((
+            convert.uint_chr(1, 4),
+            convert.uint_chr(0, 1)
+        ))
+        self.choked = True
+        self.send(buf)
+        self.read_response()
+
+    def unchoke(self):
+        \"""Unblock this peer by client.\"""
+        if not self.choked:
+            return
+        buf = "".join((
+            convert.uint_chr(1, 4),
+            convert.uint_chr(1, 1)
+        ))
+        self.choked = False
+        self.send(buf)
+        self.read_response()"""
+
+    def read_response(self):
+        result = False
+        try:
+            buf = self.recv(4)
+            message_len = convert.uint_ord(buf)
+            if message_len == 0:
+                #Todo: keep alive
+                pass
+            buf = self.recv(1)
+            message_type = convert.uint_ord(buf)
+            buf = self.conn.recv(message_len - 1)
+            switch = {
+                5: self.message_bitfield
+            }
+            if message_type in switch:
+                switch[message_type](buf, message_len - 1)
+        except:
+            pass
+        return result
+
+    """    def get_piece(self, index, begin, length):
         data = "".join((
             convert.uint_chr(13, 4),
             convert.uint_chr(6, 1),
