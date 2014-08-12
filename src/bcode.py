@@ -6,12 +6,13 @@ Bencode encoding/decoding module.
 Functions:
     bcode.encode(element)   Convert element to bencode string
     bcode.decode(string)    Convert bencode string to element
-        
+
 Supported element types:
     int
     str
     list
     dict / OrderedDict
+
 """
 
 import collections
@@ -120,8 +121,9 @@ def _read_int(stream):
 
 def _read_str(stream):
     """Read whole bencode string from the stream ; convert it to ordinary string.
-    
+
     Format: <length (only digits)>:<string>
+
     """
     str_val_len = _read_number(stream)
     byte = stream.read(1)
@@ -132,8 +134,9 @@ def _read_str(stream):
 
 def _read_list(stream):
     """Read whole bencode string from the stream ; convert it to list.
-    
+
     Format: l<element 1><element 2>...<element n>e
+
     """
     byte = stream.read(1)
     if byte != "l":
@@ -153,9 +156,10 @@ def _read_list(stream):
 
 def _read_dict(stream):
     """Read whole bencode string from the stream ; convert it to dictionary.
-    
+
     Format: d<dict_element 1><dict_element 2>...<dict_element n>e ;
     dict_element: <str><element>
+
     """
     byte = stream.read(1)
     if byte != "d":
