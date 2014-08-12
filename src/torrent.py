@@ -35,15 +35,7 @@ class Torrent(object):
         for p_thread in p_threads:
             p_thread.join()
         for p in self.peers:
-            if (
-                not p.active
-                or len(p.bitfield) == 0
-                or not p.bitfield[0]
-            ):
-                continue
-            print p.ip
-            #p.get_piece(0, 0, self.meta["info"]["piece length"])
-            break
+            pass
 
     def stop(self):
         self.tracker.request(
