@@ -79,7 +79,7 @@ def decode(string):
     return element
 
 def read_element(stream):
-    """Recognize element type."""
+    """Recognize element type ; call appropriate handler ; return its result."""
     byte = stream.read(1)
     stream.seek(-1, 1)
     switch = dict({
@@ -94,7 +94,7 @@ def read_element(stream):
     return switch[byte](stream)
 
 def read_int(stream):
-    """Convert bencode bytes to integer.
+    """Read whole bencode string from the stream ; convert it to integer.
     
     Format: i<digits>e
     """
@@ -110,7 +110,7 @@ def read_int(stream):
     return int_val
 
 def read_str(stream):
-    """Convert bencode bytes to string.
+    """Read whole bencode string from the stream ; convert it to ordinary string.
     
     Format: <length (only digits)>:<string>
     """
@@ -122,7 +122,7 @@ def read_str(stream):
     return str_val
 
 def read_list(stream):
-    """Convert bencode bytes to list.
+    """Read whole bencode string from the stream ; convert it to list.
     
     Format: l<element 1><element 2>...<element n>e
     """
@@ -143,7 +143,7 @@ def read_list(stream):
     return list_obj
 
 def read_dict(stream):
-    """Convert bencode bytes to ordered dictionary.
+    """Read whole bencode string from the stream ; convert it to dictionary.
     
     Format: d<dict_element 1><dict_element 2>...<dict_element n>e ;
     dict_element: <str><element>
@@ -163,7 +163,7 @@ def read_dict(stream):
     return dict_obj
 
 def read_number(stream):
-    """Read pure digits from stream."""
+    """Read digits only from the stream ; return result as integer."""
     string = ""
     while True:
         byte = stream.read(1)
