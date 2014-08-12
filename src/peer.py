@@ -3,7 +3,7 @@
 import time
 import socket
 
-import net
+import convert
 
 __all__ = ["Peer"]
 
@@ -20,13 +20,14 @@ class Peer(object):
         self.timestamp = 0
         self.connection = None
         self.active = False
+        self.bitfield = []
 
     def connect(self):
         try:
             data = "".join((
                 chr(19),
                 "BitTorrent protocol",
-                net.uint_chr(0, 8),
+                convert.uint_chr(0, 8),
                 self.info_hash,
                 self.my_id
             ))
@@ -34,46 +35,59 @@ class Peer(object):
             self.connection.settimeout(2)
             self.connection.connect((self.ip, self.port))
             self.send(data)
-            response = self.connection.recv(128)
-            if len(response) < 49:
-                raise RuntimeError()
-            proto_len = ord(response[0])
-            proto = response[1:proto_len+1]
+            proto_len_b =self.recv(1, True)
+            proto_len = ord(proto_len_b)
+            if proto_len != 19:
+                raise IOError()
+            proto = self.recv(proto_len, True)
             if proto != "BitTorrent protocol":
-                raise RuntimeError()
-            info_hash = response[proto_len+9:proto_len+29]
+                raise IOError()
+            self.recv(8, True)
+            info_hash = self.recv(20, True)
             if info_hash != self.info_hash:
-                raise RuntimeError()
-            self.id = response[proto_len+29:proto_len+49]
+                raise IOError()
+            self.id = self.recv(20, True)
             self.active = True
-        except:
+            self.read(False)
+        except IOError:
             self.close()
-        self.choke()
+        except:
+            pass
 
     def close(self):
         self.connection.close()
         self.connection = None
         self.active = False
 
-    def choke(self):
-        if not self.active:
-            return
-        data = "".join((
-            net.uint_chr(1),
-            "0"
-        ))
-        self.send(data)
-        response = self.connection.recv(1024)
-        self.read(response)
-
     def send(self, bytes):
         self.timestamp = time.time()
         self.connection.sendall(bytes)
 
-    def read(self, bytes):
-        if len(bytes) < 4:
+    def recv(self, length, tEOS=False):
+        bytes = self.connection.recv(length)
+        if tEOS and len(bytes) != length:
+            raise IOError("End of stream")
+        return bytes
+
+    def read(self, raise_error=True):
+        length_b = self.recv(4)
+        if len(length_b) < 4:
+            if raise_error:
+                raise ExceptionClass()
+            else:
+                return
+        length = convert.uint_ord(length_b)
+        if length == 0:
             return
-        s = ""
-        for b in bytes[0:10]:
-            s += str(net.uint_ord(b)) + ", "
-        print s
+        command_b = self.recv(1, True)
+        command = ord(command_b)
+        switch = {
+            5: self.read_bitfield
+        }
+        if command in switch:
+            switch[command](length)
+
+    def read_bitfield(self, length):
+        raw = self.recv(length - 1)
+        if len(raw) == length - 1:
+            print "Win", self.id

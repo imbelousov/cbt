@@ -7,7 +7,7 @@ import bcode
 import tracker
 import peer
 import file
-import net
+import convert
 
 __all__ = ["Torrent"]
 
@@ -66,7 +66,7 @@ class Torrent(object):
             p_bytes = t_info["peers"]
             for i in xrange(0, len(p_bytes), 6):
                 p_ip = ".".join([str(ord(byte)) for byte in p_bytes[i+0:i+4]])
-                p_port = net.uint_ord(p_bytes[i+4:i+6])
+                p_port = convert.uint_ord(p_bytes[i+4:i+6])
                 p_info_hash = self.info_hash
                 p_my_id = self.my_id
                 self.peers.append(peer.Peer(p_ip, p_port, p_info_hash, p_my_id))
