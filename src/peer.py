@@ -21,10 +21,12 @@ class Peer(object):
         self.active = False
         self.timestamp = 0
         self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.conn.settimeout(3)
+        self.conn.settimeout(2)
         self.bitfield = []
 
     def connect(self):
+        """Try to connect to the peer and shake hands
+        or close the connection."""
         try:
             self.conn.connect((self.ip, self.port))
             self.handshake()
@@ -32,19 +34,43 @@ class Peer(object):
             self.close()
 
     def close(self):
+        """Close the connection and make peer inactive."""
         self.conn.close()
         self.active = False
 
     def handshake(self):
+        """The first message transmitted by client.
+
+        Format:
+            <pstr length (1 byte)>
+            <pstr>
+            <8 zeros (reserved)>
+            <sha1 meta["info"] hash (20 bytes)>
+            <my peer_id (20 bytes)>
+
+        BitTorrent v1.0 pstr is "BitTorrent protocol".
+
+        Prefix p_ means received data from peer.
+        Postfix _b means raw bytes array.
+
+        Bitfield message reports pieces are available
+        for download from this peer.
+
+        Bitfield format:
+            <1 + bitfield_len (4 bytes)>
+            <5 (1 byte)>
+            <bitfield>
+
+        """
         protocol = "BitTorrent protocol"
-        data = "".join((
+        buf = "".join((
             chr(len(protocol)),
             protocol,
             convert.uint_chr(0, 8),
             self.info_hash,
             self.my_id
         ))
-        self.send(data)
+        self.send(buf)
         p_pstr_len_b = self.recv(1)
         p_pstr_len = convert.uint_ord(p_pstr_len_b)
         if p_pstr_len != len(protocol):
@@ -81,11 +107,33 @@ class Peer(object):
         for i in xrange(p_bitfield_miss):
             self.bitfield.append(False)
 
+    def choke(self):
+        data = None
+
+"""    def get_piece(self, index, begin, length):
+        data = "".join((
+            convert.uint_chr(13, 4),
+            convert.uint_chr(6, 1),
+            convert.uint_chr(index, 4),
+            convert.uint_chr(begin, 4),
+            convert.uint_chr(length, 4)
+        ))
+        self.send(data)
+        p_mlen_b = self.recv(4)
+        p_mlen = convert.uint_ord(p_mlen_b)
+        p_mid_b = self.recv(p_mlen)
+        p_mid = convert.uint_ord(p_mid_b)
+        print p_mid"""
+
     def send(self, bytes):
+        """Send bytes to peer and remember the time when it happened."""
         self.conn.sendall(bytes)
+        self.timestamp = time.time()
 
     def recv(self, length):
+        """Try to receive n bytes from peer ; remember the time if it was successful."""
         bytes = self.conn.recv(length)
         if len(bytes) != length:
             raise IOError("End of stream")
+        self.timestamp = time.time()
         return bytes

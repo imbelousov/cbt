@@ -19,9 +19,8 @@ import os.path
 __all__ = ["encode", "decode"]
 
 class BCodeStringIO(StringIO.StringIO):
-    """Raises error if EOF"""
-
     def read(self, n=-1):
+        """Raise error if EOF"""
         r = StringIO.StringIO.read(self, n)
         if len(r) != n:
             self.err()
@@ -32,6 +31,7 @@ class BCodeStringIO(StringIO.StringIO):
 
 
 def encode(element):
+    """Convert element into bencode bytes."""
     element_type = type(element)
     switch = {
         int: encode_int,
@@ -45,12 +45,15 @@ def encode(element):
     return switch[element_type](element)
 
 def encode_int(int_val):
+    """Convert integer into bencode bytes."""
     return "i%de" % int_val
 
 def encode_str(str_val):
+    """Convert string into bencode bytes."""
     return "%d:%s" % (len(str_val), str_val)
 
 def encode_list(list_obj):
+    """Convert list into bencode bytes."""
     encoded_list = ""
     for element in list_obj:
         encoded_element = encode(element)
@@ -58,6 +61,7 @@ def encode_list(list_obj):
     return "l%se" % encoded_list
 
 def encode_dict(dict_obj):
+    """Convert dictionary into bencode bytes."""
     encoded_dict = ""
     for key, value in dict_obj.iteritems():
         if type(key) != str:
@@ -68,13 +72,14 @@ def encode_dict(dict_obj):
     return "d%se" % encoded_dict
 
 def decode(string):
+    """Convert bencode bytes into element."""
     stream = BCodeStringIO(string)
     element = read_element(stream)
     stream.close()
     return element
 
 def read_element(stream):
-    """Automatic type recognizing"""
+    """Recognize element type."""
     byte = stream.read(1)
     stream.seek(-1, 1)
     switch = dict({
@@ -89,7 +94,10 @@ def read_element(stream):
     return switch[byte](stream)
 
 def read_int(stream):
-    """Format: i<digits>e"""
+    """Convert bencode bytes to integer.
+    
+    Format: i<digits>e
+    """
     byte = stream.read(1)
     if byte != "i":
         stream.err()
@@ -102,7 +110,10 @@ def read_int(stream):
     return int_val
 
 def read_str(stream):
-    """Format: <length (only digits)>:<string>"""
+    """Convert bencode bytes to string.
+    
+    Format: <length (only digits)>:<string>
+    """
     str_val_len = read_number(stream)
     byte = stream.read(1)
     if byte != ":":
@@ -111,7 +122,10 @@ def read_str(stream):
     return str_val
 
 def read_list(stream):
-    """Format: l<element 1><element 2>...<element n>e"""
+    """Convert bencode bytes to list.
+    
+    Format: l<element 1><element 2>...<element n>e
+    """
     byte = stream.read(1)
     if byte != "l":
         stream.err()
@@ -129,8 +143,11 @@ def read_list(stream):
     return list_obj
 
 def read_dict(stream):
-    """Format: d<dict_element 1><dict_element 2>...<dict_element n>e ;
-       dict_element: <str><element>"""
+    """Convert bencode bytes to ordered dictionary.
+    
+    Format: d<dict_element 1><dict_element 2>...<dict_element n>e ;
+    dict_element: <str><element>
+    """
     byte = stream.read(1)
     if byte != "d":
         stream.err()
@@ -146,7 +163,7 @@ def read_dict(stream):
     return dict_obj
 
 def read_number(stream):
-    """Reads pure digits from stream"""
+    """Read pure digits from stream."""
     string = ""
     while True:
         byte = stream.read(1)
@@ -159,6 +176,7 @@ def read_number(stream):
     return int(string)
 
 def digits():
+    """Generates composite elements of a number."""
     for x in xrange(10):
         yield str(x)
     yield "-"
