@@ -249,6 +249,11 @@ class Peer(object):
         ))
         self._send(buf)
 
+    def _write_keepalive(self):
+        """Client need to send this if it hasn't communicated with peer in last 2 minutes."""
+        buf = convert.uint_chr(0, 4)
+        self._send(buf)
+
     def _write_choke(self):
         buf = "".join((
             convert.uint_chr(1, 4),   # Message length
