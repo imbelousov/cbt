@@ -23,10 +23,10 @@ Public methods:
         Check if peer has piece with this index.
 
     set_choked(bool)
-        Set/reset "peer choked" flag and tell peer about it.
+        Set/reset "client choked" flag and tell peer about it.
 
     set_interested(bool)
-        Set/reset "peer interested" flag and tell peer about it.
+        Set/reset "client interested" flag and tell peer about it.
 
     close()
         Close the connection with peer and reset "active" flag.
