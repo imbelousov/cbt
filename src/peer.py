@@ -41,6 +41,10 @@ import convert
 __all__ = ["Peer"]
 
 class Peer(object):
+
+    # -------------------------------------------------------------------------
+    # Public
+
     def __init__(self, ip, port, info_hash, id):
         """
         c_ - client property
@@ -85,7 +89,7 @@ class Peer(object):
         sent by peer.
         
         """
-        self._read_message()
+        self._read_all()
 
     def is_available(self, piece):
         """Check if peer has piece with this index."""
@@ -113,6 +117,9 @@ class Peer(object):
         """Close the connection with peer and reset "active" flag."""
         self._close()
 
+    # -------------------------------------------------------------------------
+    # Private
+
     def _connect(self):
         try:
             self.conn.connect((self.p_ip, self.p_port))
@@ -122,23 +129,12 @@ class Peer(object):
         except IOError, e:
             self._close()
             return
-        self._read_message()
+        self._read_all()
 
     def _close(self):
         self.conn.close()
         self.active = False
         self.bitfield = []
-
-    def _write_handshake(self):
-        """The first message transmitted by client."""
-        buf = "".join((
-            chr(len(self.protocol)),    # Length of protocol string
-            self.protocol,              # Protocol string
-            convert.uint_chr(0, 8),     # Reserved bytes
-            self.c_info_hash,           # Client info hash (20 bytes)
-            self.c_id                   # Client ID (20 bytes)
-        ))
-        self._send(buf)
 
     def _read_handshake(self):
         """The first message transmitted by peer."""
@@ -160,30 +156,34 @@ class Peer(object):
         # Get and save peer id
         self.p_id = self._recv(20)
 
+    def _read_all(self):
+        """Read all messages (from 0 to n)."""
+        while True:
+            try:
+                self._read_message()
+            except IOError, e:
+                break
+
     def _read_message(self):
         """Detect message type and call appropriate handler."""
-        try:
-            buf = self._recv(4)
-            message_len = convert.uint_ord(buf)
-            if message_len == 0:
-                #Todo: keep alive
-                pass
-            buf = self._recv(1)
-            message_type = convert.uint_ord(buf)
-            buf = self._recv(message_len - 1)
-            switch = {
-                0: self._read_choke,
-                1: self._read_unchoke,
-                2: self._read_interested,
-                3: self._read_notinterested,
-                4: self._read_have,
-                5: self._read_bitfield
-            }
-            if message_type in switch:
-                switch[message_type](buf, message_len - 1)
-            self._read_message()
-        except IOError, e:
-            pass
+        buf = self._recv(4)
+        message_len = convert.uint_ord(buf)
+        if message_len == 0:
+            # Keep-alive message
+            return
+        buf = self._recv(1)
+        message_type = convert.uint_ord(buf)
+        buf = self._recv(message_len - 1)
+        switch = {
+            0: self._read_choke,
+            1: self._read_unchoke,
+            2: self._read_interested,
+            3: self._read_notinterested,
+            4: self._read_have,
+            5: self._read_bitfield
+        }
+        if message_type in switch:
+            switch[message_type](buf, message_len - 1)
 
     def _read_choke(self, buf, length):
         """Handler for "choke" command."""
@@ -237,6 +237,17 @@ class Peer(object):
                 bit = bool(byte & mask)
                 mask >>= 1
                 self.bitfield.append(bit)
+
+    def _write_handshake(self):
+        """The first message transmitted by client."""
+        buf = "".join((
+            chr(len(self.protocol)),    # Length of protocol string
+            self.protocol,              # Protocol string
+            convert.uint_chr(0, 8),     # Reserved bytes
+            self.c_info_hash,           # Client info hash (20 bytes)
+            self.c_id                   # Client ID (20 bytes)
+        ))
+        self._send(buf)
 
     def _write_choke(self):
         buf = "".join((
