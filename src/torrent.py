@@ -18,15 +18,15 @@ class Torrent(object):
         self.my_id = my_id
         self.my_port = my_port
         self.files = []
-        self.load_files()
+        self._load_files()
         self.peers = []
         self.tracker = tracker.get(self.meta)
-        self.load_info_hash()
+        self._load_info_hash()
 
     def start(self):
         for f in self.files:
             f.create()
-        self.load_peers()
+        self._load_peers()
         p_threads = []
         for p in self.peers:
             p_thread = threading.Thread(target = p.connect, args = ())
@@ -36,7 +36,14 @@ class Torrent(object):
             p_thread.join()
         for p in self.peers:
             if p.is_available(0):
+                p.set_choked(False)
+                p.set_interested(True)
                 print p.p_ip
+                print "c_choked:", p.c_choked
+                print "p_choked:", p.p_choked
+                print "c_interested:", p.c_interested
+                print "p_interested:", p.p_interested
+                break
 
     def stop(self):
         self.tracker.request(
@@ -49,7 +56,13 @@ class Torrent(object):
             event = "stopped"
         )
 
-    def load_files(self):
+    def get_downloaded(self):
+        return 0
+
+    def get_left(self):
+        return sum([f.length for f in self.files])
+
+    def _load_files(self):
         if "files" in self.meta["info"]:
             # Multifile mode
             for file_info in self.meta["info"]["files"]:
@@ -60,7 +73,7 @@ class Torrent(object):
             f = file.File(self.meta["info"]["name"], self.path, self.meta["info"]["length"])
             self.files.append(f)
 
-    def load_peers(self):
+    def _load_peers(self):
         t_info = self.tracker.request(
             info_hash = self.info_hash,
             peer_id = self.my_id,
@@ -79,12 +92,6 @@ class Torrent(object):
                 p_my_id = self.my_id
                 self.peers.append(peer.Peer(p_ip, p_port, p_info_hash, p_my_id))
 
-    def load_info_hash(self):
+    def _load_info_hash(self):
         info_bencode = bcode.encode(self.meta["info"])
         self.info_hash = hashlib.sha1(info_bencode).digest()
-
-    def get_downloaded(self):
-        return 0
-
-    def get_left(self):
-        return sum([f.length for f in self.files])

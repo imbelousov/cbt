@@ -20,11 +20,8 @@ class File(object):
             raise TypeError("str or list expected")
         self.length = length
 
-    def get_path(self):
-        return os.sep.join(self.name.split(os.sep)[:-1])
-
     def create(self):
-        path = self.get_path()
+        path = os.sep.join(self.name.split(os.sep)[:-1])
         if not os.path.isdir(path):
             os.makedirs(path)
         if os.path.isfile(self.name):

@@ -104,14 +104,14 @@ class Peer(object):
         if value:
             self._write_choke()
         else:
-            self._read_unchoke()
+            self._write_unchoke()
 
     def set_interested(self, value):
         """Set/reset "peer interested" flag and tell peer about it."""
         if value:
             self._write_interested()
         else:
-            self._read_notinterested()
+            self._write_notinterested()
 
     def close():
         """Close the connection with peer and reset "active" flag."""
@@ -189,25 +189,25 @@ class Peer(object):
         """Handler for "choke" command."""
         if length != 1:
             self._close()
-        self.c_choked = True
+        self.p_choked = True
 
     def _read_unchoke(self, buf, length):
         """Handler for "unchoke" command."""
         if length != 1:
             self._close()
-        self.c_choked = False
+        self.p_choked = False
 
     def _read_interested(self, buf, length):
         """Handler for "interested" command."""
         if length != 1:
             self._close()
-        self.c_interested = True
+        self.p_interested = True
 
     def _read_notinterested(self, buf, length):
         """Handler for "not interested" command."""
         if length != 1:
             self._close()
-        self.c_interested = False
+        self.p_interested = False
 
     def _read_have(self, buf, length):
         """Handler for "have" command.
@@ -260,7 +260,8 @@ class Peer(object):
             convert.uint_chr(0, 1)    # Message type
         ))
         self._send(buf)
-        self.p_choked = True
+        self.c_choked = True
+        self._read_all()
 
     def _write_unchoke(self):
         buf = "".join((
@@ -268,7 +269,8 @@ class Peer(object):
             convert.uint_chr(1, 1)    # Message type
         ))
         self._send(buf)
-        self.p_choked = False
+        self.c_choked = False
+        self._read_all()
 
     def _write_interested(self):
         buf = "".join((
@@ -276,7 +278,8 @@ class Peer(object):
             convert.uint_chr(2, 1)    # Message type
         ))
         self._send(buf)
-        self.p_interested = True
+        self.c_interested = True
+        self._read_all()
 
     def _write_notinterested(self):
         buf = "".join((
@@ -284,7 +287,8 @@ class Peer(object):
             convert.uint_chr(3, 1)    # Message type
         ))
         self._send(buf)
-        self.p_interested = False
+        self.c_interested = False
+        self._read_all()
 
     def _send(self, bytes):
         """Send bytes to peer and remember the time when it happened."""
