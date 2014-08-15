@@ -19,9 +19,12 @@ VERSION = "-CB0101-"
 
 @singleton
 class Client(object):
+    id = None
+    port = None
+
     def __init__(self):
-        torrent.Torrent.set_id(_get_id())
-        torrent.Torrent.set_port(_get_port())
+        torrent.Torrent.id = self.id = _get_id()
+        torrent.Torrent.port = self.port = _get_port()
         self.torrents = []
 
     def append(self, filename, path):

@@ -11,6 +11,7 @@ class Peer(object):
         self.c_choked = True
         self.p_interested = False
         self.c_interested = False
+        self.bitfield = []
         self.timestamp = 0
         self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.conn.settimeout(2)

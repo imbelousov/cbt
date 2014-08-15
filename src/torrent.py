@@ -25,14 +25,6 @@ class Torrent(object):
         self.hash = self._get_hash()
         self.peers = []
 
-    @staticmethod
-    def set_id(id):
-        Torrent.id = id
-
-    @staticmethod
-    def set_port(port):
-        Torrent.port = port
-
     def start(self):
         self._files_create()
         self.peers = self._tracker_get_peers()
@@ -153,23 +145,30 @@ class Torrent(object):
             except socket.error:
                 break
 
-    def _peer_recv_choke(self, buf):
+    def _peer_recv_choke(self, p, buf):
         pass
 
-    def _peer_recv_unchoke(self, buf):
+    def _peer_recv_unchoke(self, p, buf):
         pass
 
-    def _peer_recv_interested(self, buf):
+    def _peer_recv_interested(self, p, buf):
         pass
 
-    def _peer_recv_notinterested(self, buf):
+    def _peer_recv_notinterested(self, p, buf):
         pass
 
-    def _peer_recv_have(self, buf):
+    def _peer_recv_have(self, p, buf):
         pass
 
-    def _peer_recv_bitfield(self, buf):
-        pass
+    def _peer_recv_bitfield(self, p, buf):
+        p.bitfield = []
+        for byte in buf:
+            byte = ord(byte)
+            mask = 0x80
+            for _ in range(8):
+                bit = bool(byte & mask)
+                mask >>= 1
+                p.bitfield.append(bit)
 
     PEER_MESSAGES = {
         0: _peer_recv_choke,
@@ -191,4 +190,4 @@ class Torrent(object):
         buf = p.recv(message_len - 1)
         if message_type in Torrent.PEER_MESSAGES:
             message_handler = Torrent.PEER_MESSAGES[message_type]
-            message_handler(self, buf)
+            message_handler(self, p, buf)
