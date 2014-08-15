@@ -5,6 +5,7 @@ class Peer(object):
     def __init__(self, ip, port):
         self.ip = ip
         self.port = port
+        self.id = None
         self.active = False
         self.p_choked = True
         self.c_choked = True
@@ -21,6 +22,13 @@ class Peer(object):
     def close(self):
         self.conn.close()
         self.active = False
+
+    def set_id(self, id):
+        self.id = id
+
+    def get_id(self, id_):
+        assert self.id is not None
+        return self.id
 
     def send(self, bytes):
         """Remembers when was the last communication."""
@@ -39,8 +47,7 @@ class Peer(object):
         while True:
             buf = self.conn.recv(size)
             bytes = "".join((bytes, buf))
-            assert len(buf) > 0
-            if len(bytes) == size:
+            if len(bytes) == size or len(buf) == 0:
                 break
         self.timestamp = time.time()
         return bytes

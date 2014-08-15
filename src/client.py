@@ -50,12 +50,12 @@ def _get_id():
         str(pid),
         str(timestamp)
     ))
-    hash_ = hashlib.sha1(unique_str).digest()
-    id_ = "".join((
+    hash = hashlib.sha1(unique_str).digest()
+    id = "".join((
         VERSION,
-        hash_[len(VERSION):]
+        hash[len(VERSION):]
     ))
-    return id_
+    return id
 
 def _get_port(start=6881, end=6890):
     for port in xrange(start, end):
