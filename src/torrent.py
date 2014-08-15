@@ -15,8 +15,7 @@ class Torrent(object):
     port = None
 
     def __init__(self, filename, path):
-        assert Torrent.id is not None
-        assert Torrent.port is not None
+        assert Torrent.id and Torrent.port
         with open(filename, "rb") as f:
             contents = f.read()
         self.meta = bcode.decode(contents)
@@ -123,6 +122,17 @@ class Torrent(object):
         self._peer_recv(p)
 
     def _peer_send_handshake(self, p):
+        """Send the first message to peer.
+
+        This message should conform to the following format:
+            <pstr len><pstr><reserved><info hash><peer id>
+        pstr - BitTorrent Protocol identifier.
+        pstr len - length of pstr (1 byte)
+        reserved - Reserved 8 bytes
+        info hash - SHA1 hash of bencoded "info" section in meta
+        peer id - 20-byte my random identifier.
+
+        """
         buf = "".join((
             convert.uint_chr(len(Torrent.PROTOCOL), 1),
             Torrent.PROTOCOL,
@@ -133,6 +143,20 @@ class Torrent(object):
         p.send(buf)
 
     def _peer_recv_handshake(self, p):
+        """Receive the first message from peer.
+
+        This message should conform to the following format:
+            <pstr len><pstr><reserved><info hash><peer id>
+        pstr - BitTorrent Protocol identifier.
+        pstr len - length of pstr (1 byte)
+        reserved - Reserved 8 bytes
+        info hash - SHA1 hash of bencoded "info" section in meta
+        peer id - 20-byte my random identifier.
+
+        Client should close the connection if this message
+        is invalid.
+
+        """
         # Protocol identifier
         pstr_len_b = p.recv(1)
         pstr_len = convert.uint_ord(pstr_len_b)
@@ -159,16 +183,24 @@ class Torrent(object):
                 break
 
     def _peer_recv_choke(self, p, buf):
-        pass
+        if len(buf) != 1:
+            raise IOError("Invalid message format")
+        p.p_choked = True
 
     def _peer_recv_unchoke(self, p, buf):
-        pass
+        if len(buf) != 1:
+            raise IOError("Invalid message format")
+        p.p_choked = False
 
     def _peer_recv_interested(self, p, buf):
-        pass
+        if len(buf) != 1:
+            raise IOError("Invalid message format")
+        p.p_interested = True
 
     def _peer_recv_notinterested(self, p, buf):
-        pass
+        if len(buf) != 1:
+            raise IOError("Invalid message format")
+        p.p_interested = False
 
     def _peer_recv_have(self, p, buf):
         if len(buf) != 4:

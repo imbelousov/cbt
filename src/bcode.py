@@ -50,7 +50,7 @@ class BCodeStream(StringIO.StringIO):
     """
 
     def read(self, n=-1):
-        """Raise error if EOF"""
+        """Raise error if EOF."""
         r = StringIO.StringIO.read(self, n)
         if len(r) != n:
             self.err()
