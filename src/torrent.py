@@ -9,12 +9,25 @@ import peer
 import tracker
 
 class Torrent(object):
+
+    # Protocol identifier
     PROTOCOL = "BitTorrent protocol"
 
+    # 20-byte my random identifier
     id = None
+    # TCP port for incoming connections.
     port = None
 
     def __init__(self, filename, path):
+        """
+        filename - .torrent file full or relative name
+        path - download path
+
+        Torrent.id and Torrent.port are static properties.
+        They should be determined before the creating
+        a new Torrent instance.
+
+        """
         assert Torrent.id and Torrent.port
         with open(filename, "rb") as f:
             contents = f.read()
@@ -26,11 +39,25 @@ class Torrent(object):
         self.peers = []
 
     def start(self):
+        """Start the download.
+
+        1. Tell the tracker that I am going to download torrent
+        2. Get peers list from the tracker
+        3. Try to connect to each peer in list
+        4. ...
+
+        """
         self._files_create()
         self.peers = self._tracker_get_peers()
         self._peers_connect()
 
     def stop(self):
+        """Stop the download.
+
+        1. Tell the tracker that I stopped the download
+        2. ...
+
+        """
         self.tracker.request(
             hash=self.hash,
             id=Torrent.id,
@@ -42,11 +69,13 @@ class Torrent(object):
         )
 
     def _get_hash(self):
+        """Return SHA1 hash of bencoded "info" section of the meta."""
         info = bcode.encode(self.meta["info"])
         hash = hashlib.sha1(info).digest()
         return hash
 
     def _tracker_get_urls(self):
+        """Return list of URLs of trackers which specified in the meta."""
         urls = []
         if "announce" in self.meta:
             urls.append(self.meta["announce"])
@@ -56,6 +85,10 @@ class Torrent(object):
         return urls
 
     def _tracker_get_peers(self):
+        """Return list of peers which download or have downloaded
+        this torrent too. Send "started" command to tracker.
+
+        """
         peers = []
         info = self.tracker.request(
             hash=self.hash,
