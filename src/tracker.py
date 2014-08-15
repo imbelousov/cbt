@@ -1,6 +1,5 @@
 #! /usr/bin/python
 
-import abc
 import urllib
 import urllib2
 import re
@@ -11,48 +10,62 @@ import bcode
 __all__ = ["get"]
 
 class Tracker(object):
-    __metaclass__ = abc.ABCMeta
+    """Base BitTorrent tracker class.
+    Doesn't fully implement network communication.
 
+    """
     DEFAULT_PORT = None
 
     def __init__(self, host):
         self.host = host
 
-    @abc.abstractmethod
-    def request(self, info_hash, peer_id, port, uploaded, downloaded, left, event):
-        pass
+    def request(self, hash, id, port, uploaded, downloaded, left, event):
+        return None
 
     def is_available(self):
+        """Try to connect to tracker. Return True if connection
+        successful and False if not.
+
+        """
         pattern = re.compile("^[a-z]+://([a-z0-9.\-]+):?([0-9]*)/?")
         info = pattern.split(self.host)
         address = info[1]
         port = info[2]
+        result = True
         try:
             port = int(port)
-        except:
+        except ValueError:
             port = self.DEFAULT_PORT
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(2)
         try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(2)
             sock.connect((address, port))
+        except socket.timeout:
+            result = False
+        finally:
             sock.close()
-            return True
-        except:
-            return False
+        return result
 
 
 class HTTPTracker(Tracker):
+    """Regular BitTorrent tracker class.
+    Requests are sent through HTTP messages using
+    GET method. Response is plain/text message:
+    bencoded or empty string.
+
+    """
+
     DEFAULT_PORT = 80
 
-    def request(self, info_hash, peer_id, port, uploaded, downloaded, left, event):
+    def request(self, hash, id, port, uploaded, downloaded, left, event):
         url = self.host
         sep = "?"
         if sep in url:
             sep = "&"
         get_dict = {}
         get_dict.update({
-            "info_hash": info_hash,
-            "peer_id": peer_id,
+            "info_hash": hash,
+            "peer_id": id,
             "port": port,
             "uploaded": uploaded,
             "downloaded": downloaded,
@@ -60,41 +73,47 @@ class HTTPTracker(Tracker):
             "compact": 1,
             "event": event
         })
-        get = urllib.urlencode(get_dict)
-        url = "".join((url, sep, get))
+        param = urllib.urlencode(get_dict)
+        url = "".join((url, sep, param))
+        response = ""
         try:
             response = urllib2.urlopen(url).read()
-            element = bcode.decode(response)
-        except ValueError:
-            element = None
-        return element
+        except urllib2.URLError:
+            pass
+        result = bcode.decode(response)
+        return result
 
 
 class UDPTracker(Tracker):
+    """eXtended BitTorrent Tracker class.
+    Requests are sent through UDP datagrams.
+    Todo.
+
+    """
     DEFAULT_PORT = 2710
 
-    def request(self, info_hash, peer_id, port, uploaded, downloaded, left, event):
-        return None
+    def request(self, hash, id, port, uploaded, downloaded, left, event):
+        return ""
 
 
-def get(meta):
-    """Returns an instance of appropriate tracker class"""
-    tracker_types = {
+def get(url_list):
+    """Returns an instance of appropriate tracker class.
+    Try to connect to trackers in url_list until one of them
+    does not respond.
+
+    """
+    tracker_classes = {
         "http": HTTPTracker,
         "https": HTTPTracker,
         "udp": UDPTracker
     }
-    trackers = []
-    if "announce" in meta:
-        trackers.append(meta["announce"])
-    if "announce-list" in meta:
-        for item in meta["announce-list"]:
-            trackers.append(item[0])
-    for url in trackers:
+    tracker = None
+    for url in url_list:
         protocol = url.split("://")[0]
-        if protocol not in tracker_types:
+        if protocol not in tracker_classes:
             continue
-        tracker = tracker_types[protocol](url)
+        TrackerClass = tracker_classes[protocol]
+        tracker = TrackerClass(url)
         if tracker.is_available():
-            return tracker
-    return None
+            break
+    return tracker

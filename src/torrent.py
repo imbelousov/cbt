@@ -1,97 +1,105 @@
-#! /usr/bin/python
-
 import hashlib
-import threading
 
 import bcode
-import tracker
-import peer
-import file
 import convert
-
-__all__ = ["Torrent"]
+import file
+import peer
+import tracker
 
 class Torrent(object):
-    def __init__(self, contents, path, my_id, my_port):
+    id = None
+    port = None
+
+    def __init__(self, filename, path):
+        assert Torrent.id is not None
+        assert Torrent.port is not None
+        with open(filename, "rb") as f:
+            contents = f.read()
         self.meta = bcode.decode(contents)
         self.path = path
-        self.my_id = my_id
-        self.my_port = my_port
-        self.files = []
-        self._load_files()
+        self.tracker = tracker.get(self._tracker_get_urls())
+        self.files = self._files_get_list()
+        self.hash = self._get_hash()
         self.peers = []
-        self.tracker = tracker.get(self.meta)
-        self._load_info_hash()
+
+    @staticmethod
+    def set_id(id_):
+        Torrent.id = id_
+
+    @staticmethod
+    def set_port(port):
+        Torrent.port = port
 
     def start(self):
-        for f in self.files:
-            f.create()
-        self._load_peers()
-        p_threads = []
+        self._files_create()
+        self.peers = self._tracker_get_peers()
         for p in self.peers:
-            p_thread = threading.Thread(target = p.connect, args = ())
-            p_thread.start()
-            p_threads.append(p_thread)
-        for p_thread in p_threads:
-            p_thread.join()
-        for p in self.peers:
-            if p.is_available(0):
-                p.set_choked(False)
-                p.set_interested(True)
-                print p.p_ip
-                print "c_choked:", p.c_choked
-                print "p_choked:", p.p_choked
-                print "c_interested:", p.c_interested
-                print "p_interested:", p.p_interested
-                break
+            print p.ip, p.port
 
     def stop(self):
         self.tracker.request(
-            info_hash = self.info_hash,
-            peer_id = self.my_id,
-            port = self.my_port,
-            uploaded = 0,
-            downloaded = self.get_downloaded(),
-            left = self.get_left(),
-            event = "stopped"
+            hash=self.hash,
+            id=Torrent.id,
+            port=Torrent.port,
+            uploaded=0,
+            downloaded=0,
+            left=0,
+            event="stopped"
         )
 
-    def get_downloaded(self):
-        return 0
+    def _get_hash(self):
+        info = bcode.encode(self.meta["info"])
+        hash_ = hashlib.sha1(info).digest()
+        return hash_
 
-    def get_left(self):
-        return sum([f.length for f in self.files])
+    def _tracker_get_urls(self):
+        urls = []
+        if "announce" in self.meta:
+            urls.append(self.meta["announce"])
+        if "announce-list" in self.meta:
+            for item in self.meta["announce-list"]:
+                urls.append(item[0])
+        return urls
 
-    def _load_files(self):
+    def _tracker_get_peers(self):
+        peers = []
+        info = self.tracker.request(
+            hash=self.hash,
+            id=Torrent.id,
+            port=Torrent.port,
+            uploaded=0,
+            downloaded=0,
+            left=0,
+            event="started"
+        )
+        if type(info["peers"]) is str:
+            peers_bytes = info["peers"]
+            for x in xrange(0, len(peers_bytes), 6):
+                ip = ".".join([str(ord(byte)) for byte in peers_bytes[x+0:x+4]])
+                port = convert.uint_ord(peers_bytes[x+4:x+6])
+                p = peer.Peer(ip, port)
+                peers.append(p)
+        return peers
+
+    def _files_get_list(self):
+        files = []
         if "files" in self.meta["info"]:
-            # Multifile mode
             for file_info in self.meta["info"]["files"]:
-                f = file.File(file_info["path"], self.path, file_info["length"])
-                self.files.append(f)
-        elif "name" and "length" in self.meta["info"]:
-            # Singlefile mode
-            f = file.File(self.meta["info"]["name"], self.path, self.meta["info"]["length"])
-            self.files.append(f)
+                f = file.File(
+                    intorrent_path=file_info["path"],
+                    download_path=self.path,
+                    size=file_info["length"]
+                )
+                files.append(f)
+        if "name" and "length" in self.meta["info"]:
+            f = file.File(
+                intorrent_path=self.meta["info"]["name"],
+                download_path=self.path,
+                size=self.meta["info"]["length"]
+            )
+            files.append(f)
+        return files
 
-    def _load_peers(self):
-        t_info = self.tracker.request(
-            info_hash = self.info_hash,
-            peer_id = self.my_id,
-            port = self.my_port,
-            uploaded = 0,
-            downloaded = self.get_downloaded(),
-            left = self.get_left(),
-            event = "started"
-        )
-        if type(t_info["peers"]) is str:
-            p_bytes = t_info["peers"]
-            for x in xrange(0, len(p_bytes), 6):
-                p_ip = ".".join([str(ord(byte)) for byte in p_bytes[x+0:x+4]])
-                p_port = convert.uint_ord(p_bytes[x+4:x+6])
-                p_info_hash = self.info_hash
-                p_my_id = self.my_id
-                self.peers.append(peer.Peer(p_ip, p_port, p_info_hash, p_my_id))
-
-    def _load_info_hash(self):
-        info_bencode = bcode.encode(self.meta["info"])
-        self.info_hash = hashlib.sha1(info_bencode).digest()
+    def _files_create(self):
+        for f in self.files:
+            f.create()

@@ -11,27 +11,44 @@ Supported element types:
     int
     str
     list
-    dict / OrderedDict
+    tuple
+    dict
+    OrderedDict
 
 """
 
 import collections
 import StringIO
-import os.path
 
 __all__ = ["encode", "decode"]
 
+ordered_dict = collections.OrderedDict
+
 def encode(element):
-    """Convert element into bencode bytes."""
+    """Convert element into bencode bytes.
+    Returns a string.
+    element may be integer, string, list, tuple,
+    dictionary or ordered dictionary
+
+    """
     return _encode_element(element)
 
 def decode(string):
-    """Convert bencode bytes into element."""
+    """Convert bencode bytes into element.
+    Returns: string, integer, list, ordered_dict or None
+
+    """
     stream = _make_stream(string)
     return _read_element(stream)
 
 
-class BCodeStringIO(StringIO.StringIO):
+class BCodeStream(StringIO.StringIO):
+    """It is necessary to raise an error if cursor has reached EOF
+    and stream is going to read next bytes.
+    It means that bencoded string is invalid.
+
+    """
+
     def read(self, n=-1):
         """Raise error if EOF"""
         r = StringIO.StringIO.read(self, n)
@@ -40,7 +57,7 @@ class BCodeStringIO(StringIO.StringIO):
         return r
 
     def err(self):
-        raise ValueError("Invalid bencode string")
+        raise IOError("Invalid bencode string")
 
 
 def _encode_element(element):
@@ -51,22 +68,25 @@ def _encode_element(element):
         str: _encode_str,
         list: _encode_list,
         dict: _encode_dict,
-        collections.OrderedDict: _encode_dict
+        ordered_dict: _encode_dict
     }
-    if element_type not in switch:
-        return ""
-    return switch[element_type](element)
+    assert element_type in switch
+    encoder = switch[element_type]
+    return encoder(element)
 
 def _encode_int(int_val):
     """Convert integer into bencode bytes."""
+    assert type(int_val) is int
     return "i%de" % int_val
 
 def _encode_str(str_val):
     """Convert string into bencode bytes."""
+    assert type(str_val) is str
     return "%d:%s" % (len(str_val), str_val)
 
 def _encode_list(list_obj):
     """Convert list into bencode bytes."""
+    assert type(list_obj) in (list, tuple)
     encoded_list = ""
     for element in list_obj:
         encoded_element = _encode_element(element)
@@ -75,6 +95,7 @@ def _encode_list(list_obj):
 
 def _encode_dict(dict_obj):
     """Convert dictionary into bencode bytes."""
+    assert type(dict_obj) in (dict, ordered_dict)
     encoded_dict = ""
     for key, value in dict_obj.iteritems():
         if type(key) != str:
@@ -86,22 +107,27 @@ def _encode_dict(dict_obj):
 
 def _make_stream(string):
     """Make string stream and initialize its buffer with bencode string."""
-    return BCodeStringIO(string)
+    string = str(string)
+    return BCodeStream(string)
 
 def _read_element(stream):
     """Recognize element type ; call appropriate handler ; return its result."""
-    byte = stream.read(1)
+    try:
+        byte = stream.read(1)
+    except IOError:
+        byte = None
     stream.seek(-1, 1)
     switch = dict({
-        "i": _read_int,
-        "l": _read_list,
-        "d": _read_dict }, **{
+                      "i": _read_int,
+                      "l": _read_list,
+                      "d": _read_dict}, **{
         digit: _read_str
-            for digit in _digits()
+        for digit in _digits()
     })
     if byte not in switch:
         return None
-    return switch[byte](stream)
+    reader = switch[byte]
+    return reader(stream)
 
 def _read_int(stream):
     """Read whole bencode string from the stream ; convert it to integer.
@@ -165,7 +191,7 @@ def _read_dict(stream):
     byte = stream.read(1)
     if byte != "d":
         stream.err()
-    dict_obj = collections.OrderedDict()
+    dict_obj = ordered_dict()
     while True:
         byte = stream.read(1)
         if byte == "e":
