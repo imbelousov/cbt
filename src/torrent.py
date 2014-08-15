@@ -1,5 +1,6 @@
 import hashlib
 import socket
+import threading
 
 import bcode
 import convert
@@ -99,15 +100,27 @@ class Torrent(object):
             f.create()
 
     def _peers_connect(self):
+        conn_threads = []
         for p in self.peers:
+            thread = threading.Thread(target=self._peer_connect, args=(p,))
+            thread.start()
+            conn_threads.append(thread)
+        for thread in conn_threads:
+            thread.join()
+
+    def _peer_connect(self, p):
+        try:
             p.connect()
-            self._peer_send_handshake(p)
-            try:
-                self._peer_recv_handshake(p)
-            except IOError:
-                p.close()
-                continue
-            self._peer_recv(p)
+        except (socket.timeout, socket.error):
+            p.close()
+            return
+        self._peer_send_handshake(p)
+        try:
+            self._peer_recv_handshake(p)
+        except IOError:
+            p.close()
+            return
+        self._peer_recv(p)
 
     def _peer_send_handshake(self, p):
         buf = "".join((
@@ -136,7 +149,7 @@ class Torrent(object):
             raise IOError("Torrents are not the same")
         # Get peer id and save
         id = p.recv(20)
-        p.set_id(id)
+        p.id = id
 
     def _peer_recv(self, p):
         while True:
@@ -158,7 +171,11 @@ class Torrent(object):
         pass
 
     def _peer_recv_have(self, p, buf):
-        pass
+        if len(buf) != 4:
+            raise IOError("Invalid message format")
+        piece = convert.uint_ord(buf)
+        if piece < len(p.bitfield):
+            p.bitfield[piece] = True
 
     def _peer_recv_bitfield(self, p, buf):
         p.bitfield = []

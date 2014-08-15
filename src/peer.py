@@ -24,13 +24,6 @@ class Peer(object):
         self.conn.close()
         self.active = False
 
-    def set_id(self, id):
-        self.id = id
-
-    def get_id(self, id_):
-        assert self.id is not None
-        return self.id
-
     def send(self, bytes):
         """Remembers when was the last communication."""
         assert self.active
@@ -46,9 +39,12 @@ class Peer(object):
         assert self.active
         bytes = ""
         while True:
-            buf = self.conn.recv(size)
-            bytes = "".join((bytes, buf))
-            if len(bytes) == size or len(buf) == 0:
+            left = size - len(bytes)
+            if left == 0:
                 break
+            buf = self.conn.recv(left)
+            if len(buf) == 0:
+                raise socket.error("End of stream")
+            bytes = "".join((bytes, buf))
         self.timestamp = time.time()
         return bytes
