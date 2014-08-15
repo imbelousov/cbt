@@ -151,7 +151,7 @@ class Torrent(object):
         pstr len - length of pstr (1 byte)
         reserved - Reserved 8 bytes
         info hash - SHA1 hash of bencoded "info" section in meta
-        peer id - 20-byte my random identifier.
+        peer id - 20-byte peer identifier.
 
         Client should close the connection if this message
         is invalid.
