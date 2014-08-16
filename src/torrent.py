@@ -12,6 +12,13 @@ class Torrent(object):
 
     # Protocol identifier
     PROTOCOL = "BitTorrent protocol"
+    # Messages
+    MESSAGE_CHOKE = 0
+    MESSAGE_UNCHOKE = 1
+    MESSAGE_INTERESTED = 2
+    MESSAGE_NOTINTERESTED = 3
+    MESSAGE_HAVE = 4
+    MESSAGE_BITFIELD = 5
 
     # 20-byte my random identifier
     id = None
@@ -20,7 +27,7 @@ class Torrent(object):
 
     def __init__(self, filename, path):
         """
-        filename - .torrent file full or relative name
+        filename - full or relative name of .torrent file
         path - download path
 
         Torrent.id and Torrent.port are static properties.
@@ -160,7 +167,7 @@ class Torrent(object):
         except IOError:
             p.close()
             return
-        self._peer_recv(p)
+        self._peer_recv_messages(p)
 
     def _peer_send_handshake(self, p):
         """Send the first message to the peer.
@@ -182,6 +189,33 @@ class Torrent(object):
             Torrent.id
         ))
         p.send(buf)
+
+    def _peer_send_message(self, p, buf):
+        buf = "".join((
+            convert.uint_chr(len(buf)),
+            buf
+        ))
+        p.send(buf)
+
+    def _peer_send_choke(self, p):
+        buf = chr(Torrent.MESSAGE_CHOKE)
+        self._peer_send_message(p, buf)
+        p.c_choked = True
+
+    def _peer_send_unchoke(self, p):
+        buf = chr(Torrent.MESSAGE_UNCHOKE)
+        self._peer_send_message(p, buf)
+        p.c_choked = False
+
+    def _peer_send_interested(self, p):
+        buf = chr(Torrent.MESSAGE_INTERESTED)
+        self._peer_send_message(p, buf)
+        p.c_interested = True
+
+    def _peer_send_notinterested(self, p):
+        buf = chr(Torrent.MESSAGE_NOTINTERESTED)
+        self._peer_send_message(p, buf)
+        p.c_interested = False
 
     def _peer_recv_handshake(self, p):
         """Receive the first message from the peer.
@@ -216,7 +250,7 @@ class Torrent(object):
         id = p.recv(20)
         p.id = id
 
-    def _peer_recv(self, p):
+    def _peer_recv_messages(self, p):
         while True:
             try:
                 self._peer_recv_message(p)
@@ -261,12 +295,12 @@ class Torrent(object):
                 p.bitfield.append(bit)
 
     PEER_MESSAGES = {
-        0: _peer_recv_choke,
-        1: _peer_recv_unchoke,
-        2: _peer_recv_interested,
-        3: _peer_recv_notinterested,
-        4: _peer_recv_have,
-        5: _peer_recv_bitfield
+        MESSAGE_CHOKE: _peer_recv_choke,
+        MESSAGE_UNCHOKE: _peer_recv_unchoke,
+        MESSAGE_INTERESTED: _peer_recv_interested,
+        MESSAGE_NOTINTERESTED: _peer_recv_notinterested,
+        MESSAGE_HAVE: _peer_recv_have,
+        MESSAGE_BITFIELD: _peer_recv_bitfield
     }
 
     def _peer_recv_message(self, p):
