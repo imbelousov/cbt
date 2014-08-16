@@ -1,5 +1,3 @@
-#! /usr/bin/python
-
 __all__ = ["uint_chr, uint_ord"]
 
 

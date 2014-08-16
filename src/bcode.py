@@ -1,5 +1,3 @@
-#! /usr/bin/python
-
 """
 Bencode encoding/decoding module.
 

@@ -1,5 +1,3 @@
-#! /usr/bin/python
-
 import os
 
 __all__ = ["File"]
