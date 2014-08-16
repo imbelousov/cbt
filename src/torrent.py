@@ -87,6 +87,7 @@ class Torrent(object):
     def _tracker_get_peers(self):
         """Return list of peers which download or have downloaded
         this torrent too. Send "started" command to tracker.
+        Each peer is a peer.Peer object.
 
         """
         peers = []
@@ -109,7 +110,12 @@ class Torrent(object):
         return peers
 
     def _files_get_list(self):
+        """Return list of files which specified in the meta.
+        Each file is a file.File object.
+
+        """
         files = []
+        # Multifile mode
         if "files" in self.meta["info"]:
             for file_info in self.meta["info"]["files"]:
                 f = file.File(
@@ -118,6 +124,7 @@ class Torrent(object):
                     size=file_info["length"]
                 )
                 files.append(f)
+        # Singlefile mode
         if "name" and "length" in self.meta["info"]:
             f = file.File(
                 intorrent_path=self.meta["info"]["name"],
@@ -128,6 +135,7 @@ class Torrent(object):
         return files
 
     def _files_create(self):
+        """Allocate memory on disk for each file that specified in meta."""
         for f in self.files:
             f.create()
 
@@ -155,7 +163,7 @@ class Torrent(object):
         self._peer_recv(p)
 
     def _peer_send_handshake(self, p):
-        """Send the first message to peer.
+        """Send the first message to the peer.
 
         This message should conform to the following format:
             <pstr len><pstr><reserved><info hash><peer id>
@@ -176,7 +184,7 @@ class Torrent(object):
         p.send(buf)
 
     def _peer_recv_handshake(self, p):
-        """Receive the first message from peer.
+        """Receive the first message from the peer.
 
         This message should conform to the following format:
             <pstr len><pstr><reserved><info hash><peer id>
