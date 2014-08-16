@@ -1,6 +1,7 @@
 import socket
 import time
 
+
 class Peer(object):
     def __init__(self, ip, port):
         self.ip = ip

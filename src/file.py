@@ -4,6 +4,7 @@ import os
 
 __all__ = ["File"]
 
+
 class File(object):
     def __init__(self, intorrent_path, download_path, size):
         """

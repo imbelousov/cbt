@@ -24,6 +24,7 @@ __all__ = ["encode", "decode"]
 
 ordered_dict = collections.OrderedDict
 
+
 def encode(element):
     """Convert element into bencode bytes.
     Returns a string.
@@ -32,6 +33,7 @@ def encode(element):
 
     """
     return _encode_element(element)
+
 
 def decode(string):
     """Convert bencode bytes into element.
@@ -74,15 +76,18 @@ def _encode_element(element):
     encoder = switch[element_type]
     return encoder(element)
 
+
 def _encode_int(int_val):
     """Convert integer into bencode bytes."""
     assert type(int_val) is int
     return "i%de" % int_val
 
+
 def _encode_str(str_val):
     """Convert string into bencode bytes."""
     assert type(str_val) is str
     return "%d:%s" % (len(str_val), str_val)
+
 
 def _encode_list(list_obj):
     """Convert list into bencode bytes."""
@@ -92,6 +97,7 @@ def _encode_list(list_obj):
         encoded_element = _encode_element(element)
         encoded_list = "".join((encoded_list, encoded_element))
     return "l%se" % encoded_list
+
 
 def _encode_dict(dict_obj):
     """Convert dictionary into bencode bytes."""
@@ -105,10 +111,12 @@ def _encode_dict(dict_obj):
         encoded_dict = "".join((encoded_dict, encoded_key, encoded_value))
     return "d%se" % encoded_dict
 
+
 def _make_stream(string):
     """Make string stream and initialize its buffer with bencode string."""
     string = str(string)
     return BCodeStream(string)
+
 
 def _read_element(stream):
     """Recognize element type ; call appropriate handler ; return its result."""
@@ -129,6 +137,7 @@ def _read_element(stream):
     reader = switch[byte]
     return reader(stream)
 
+
 def _read_int(stream):
     """Read whole bencode string from the stream ; convert it to integer.
 
@@ -146,6 +155,7 @@ def _read_int(stream):
             break
     return int_val
 
+
 def _read_str(stream):
     """Read whole bencode string from the stream ; convert it to ordinary string.
 
@@ -158,6 +168,7 @@ def _read_str(stream):
         stream.err()
     str_val = stream.read(str_val_len)
     return str_val
+
 
 def _read_list(stream):
     """Read whole bencode string from the stream ; convert it to list.
@@ -181,6 +192,7 @@ def _read_list(stream):
         list_obj.append(element)
     return list_obj
 
+
 def _read_dict(stream):
     """Read whole bencode string from the stream ; convert it to dictionary.
 
@@ -202,6 +214,7 @@ def _read_dict(stream):
         dict_obj.update({key: value})
     return dict_obj
 
+
 def _read_number(stream):
     """Read digits only from the stream ; return result as integer."""
     string = ""
@@ -214,6 +227,7 @@ def _read_number(stream):
     if len(string) == 0:
         return 0
     return int(string)
+
 
 def _digits():
     """Generates composite elements of a number."""

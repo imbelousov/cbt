@@ -2,6 +2,7 @@
 
 __all__ = ["uint_chr, uint_ord"]
 
+
 def uint_chr(uint_val, size=4):
     """Convert unsigned integer to bytes array
     with network byte order.
@@ -13,6 +14,7 @@ def uint_chr(uint_val, size=4):
         uint_val /= 0x100
     bytes_list = [chr(byte) for byte in bytes]
     return "".join(bytes_list)
+
 
 def uint_ord(bytes):
     """Convert network-ordered byte array

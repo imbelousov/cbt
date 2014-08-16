@@ -8,10 +8,12 @@ import file
 import peer
 import tracker
 
+
 class Torrent(object):
 
     # Protocol identifier
     PROTOCOL = "BitTorrent protocol"
+
     # Messages
     MESSAGE_CHOKE = 0
     MESSAGE_UNCHOKE = 1

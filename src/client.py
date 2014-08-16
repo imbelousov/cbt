@@ -5,6 +5,7 @@ import time
 
 import torrent
 
+
 def singleton(cls):
     instances = {}
 
@@ -59,6 +60,7 @@ def _get_id():
         hash[len(VERSION):]
     ))
     return id
+
 
 def _get_port(start=6881, end=6890):
     for port in xrange(start, end):

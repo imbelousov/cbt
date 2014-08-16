@@ -9,6 +9,7 @@ import bcode
 
 __all__ = ["get"]
 
+
 class Tracker(object):
     """Base BitTorrent tracker class.
     Doesn't fully implement network communication.
