@@ -29,8 +29,12 @@ class Torrent(object):
 
     def __init__(self, filename, path):
         """
-        filename - full or relative name of .torrent file
-        path - download path
+        Args:
+            filename: full or relative name of .torrent file
+            path: download path
+
+        Raises:
+            AssertionError: Torrent.id or Torrent.port isn't defined
 
         Torrent.id and Torrent.port are static properties.
         They should be determined before the creating

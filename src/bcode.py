@@ -90,24 +90,29 @@ def _encode_str(str_val):
 def _encode_list(list_obj):
     """Convert list into bencode bytes."""
     assert type(list_obj) in (list, tuple)
-    encoded_list = ""
+    elements = ["l"]
     for element in list_obj:
         encoded_element = _encode_element(element)
-        encoded_list = "".join((encoded_list, encoded_element))
-    return "l%se" % encoded_list
+        elements.append(encoded_element)
+    elements.append("e")
+    encoded_list = "".join(elements)
+    return encoded_list
 
 
 def _encode_dict(dict_obj):
     """Convert dictionary into bencode bytes."""
     assert type(dict_obj) in (dict, ordered_dict)
-    encoded_dict = ""
+    elements = ["d"]
     for key, value in dict_obj.iteritems():
         if type(key) != str:
             key = str(key)
         encoded_key = _encode_str(key)
+        elements.append(encoded_key)
         encoded_value = _encode_element(value)
-        encoded_dict = "".join((encoded_dict, encoded_key, encoded_value))
-    return "d%se" % encoded_dict
+        elements.append(encoded_value)
+    elements.append("e")
+    encoded_dict = "".join(elements)
+    return encoded_dict
 
 
 def _make_stream(string):
