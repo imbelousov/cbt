@@ -38,6 +38,7 @@ class Client(object):
                 t.start()
         else:
             self.torrents[index].start()
+#        self.listen()
 
     def stop(self, index=None):
         if index is None:
@@ -45,6 +46,11 @@ class Client(object):
                 t.stop()
         else:
             self.torrents[index].stop()
+
+    def listen(self):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.bind(("0.0.0.0", self.port))
+        self.sock.listen(50)
 
 
 def _get_id():

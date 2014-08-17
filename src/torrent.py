@@ -21,6 +21,9 @@ class Torrent(object):
     MESSAGE_NOTINTERESTED = 3
     MESSAGE_HAVE = 4
     MESSAGE_BITFIELD = 5
+    MESSAGE_REQUEST = 6
+    MESSAGE_PIECE = 7
+    MESSAGE_CANCEL = 8
 
     # 20-byte my random identifier
     id = None
@@ -63,14 +66,25 @@ class Torrent(object):
         self._files_create()
         self.peers = self._tracker_get_peers()
         self._peers_connect()
+        for p in self.peers:
+            if not p.conn:
+                continue
+            threading.Thread(target=self._peer_keep_alive, args=(p,)).start()
+            print "Started %s" % p.ip
+
 
     def stop(self):
         """Stop the download.
 
-        1. Tell the tracker that I stopped the download
-        2. ...
+        1. Close all connections with peers
+        2. Clear peers list
+        3. Tell the tracker that I stopped the download
 
         """
+        for p in self.peers:
+            if p.active:
+                p.close()
+        self.peers = []
         self.tracker.request(
             hash=self.hash,
             id=Torrent.id,
@@ -173,18 +187,25 @@ class Torrent(object):
         except IOError:
             p.close()
             return
-        self._peer_recv_messages(p)
+        p.active = True
+
+    def _peer_keep_alive(self, p):
+        while p.active:
+            try:
+                self._peer_recv_message(p)
+            except socket.timeout:
+                pass
 
     def _peer_send_handshake(self, p):
         """Send the first message to the peer.
 
         This message should conform to the following format:
             <pstr len><pstr><reserved><info hash><peer id>
-        pstr - BitTorrent Protocol identifier.
-        pstr len - length of pstr (1 byte)
-        reserved - Reserved 8 bytes
-        info hash - SHA1 hash of bencoded "info" section in meta
-        peer id - 20-byte my random identifier.
+        pstr: identifier of BitTorrent Protocol.
+        pstr len: length of pstr (1 byte)
+        reserved: Reserved 8 bytes
+        info hash: SHA1 hash of bencoded "info" section in the meta
+        peer id: 20-byte my random identifier.
 
         """
         buf = "".join((
@@ -202,6 +223,9 @@ class Torrent(object):
             buf
         ))
         p.send(buf)
+
+    def _peer_send_keep_alive(self, p):
+        self._peer_send_message(p, "")
 
     def _peer_send_choke(self, p):
         buf = chr(Torrent.MESSAGE_CHOKE)
@@ -223,16 +247,34 @@ class Torrent(object):
         self._peer_send_message(p, buf)
         p.c_interested = False
 
-    def _peer_recv_handshake(self, p):
+    def _peer_send_request(self, p, index, begin, length):
+        """
+
+        Args:
+            p: instance of the peer
+            index: index of piece that you want do download (whole or partially)
+            begin: offset within the piece
+            length: requested length of part of the piece
+
+        """
+        buf = "".join((
+            convert.uint_chr(index),
+            convert.uint_chr(begin),
+            convert.uint_chr(length)
+        ))
+        self._peer_send_message(p, buf)
+
+    @staticmethod
+    def recv_handshake(p):
         """Receive the first message from the peer.
 
         This message should conform to the following format:
             <pstr len><pstr><reserved><info hash><peer id>
-        pstr - BitTorrent Protocol identifier.
-        pstr len - length of pstr (1 byte)
-        reserved - Reserved 8 bytes
-        info hash - SHA1 hash of bencoded "info" section in meta
-        peer id - 20-byte peer identifier.
+        pstr: identifier of BitTorrent protocol.
+        pstr len: length of pstr (1 byte)
+        reserved: Reserved 8 bytes
+        info hash: SHA1 hash of bencoded "info" section in the meta
+        peer id: 20-byte peer identifier.
 
         Client should close the connection if this message
         is invalid.
@@ -248,38 +290,35 @@ class Torrent(object):
             raise IOError("Unknown peer protocol")
         # Reserved bytes
         p.recv(8)
-        # Check if peer really has this torrent
+        # "info" hash
         hash = p.recv(20)
-        if hash != self.hash:
-            raise IOError("Torrents are not the same")
         # Get peer id and save
         id = p.recv(20)
         p.id = id
+        return hash
 
-    def _peer_recv_messages(self, p):
-        while True:
-            try:
-                self._peer_recv_message(p)
-            except socket.error:
-                break
+    def _peer_recv_handshake(self, p):
+        hash = Torrent.recv_handshake(p)
+        if self.hash != hash:
+            raise IOError("Torrents are not the same")
 
     def _peer_recv_choke(self, p, buf):
-        if len(buf) != 1:
+        if len(buf) != 0:
             raise IOError("Invalid message format")
         p.p_choked = True
 
     def _peer_recv_unchoke(self, p, buf):
-        if len(buf) != 1:
+        if len(buf) != 0:
             raise IOError("Invalid message format")
         p.p_choked = False
 
     def _peer_recv_interested(self, p, buf):
-        if len(buf) != 1:
+        if len(buf) != 0:
             raise IOError("Invalid message format")
         p.p_interested = True
 
     def _peer_recv_notinterested(self, p, buf):
-        if len(buf) != 1:
+        if len(buf) != 0:
             raise IOError("Invalid message format")
         p.p_interested = False
 
@@ -300,13 +339,22 @@ class Torrent(object):
                 mask >>= 1
                 p.bitfield.append(bit)
 
+    def _peer_recv_piece(self, p, buf):
+        index_b = buf[0:4]
+        index = convert.uint_ord(index_b)
+        begin_b = buf[4:8]
+        begin = convert.uint_ord(begin_b)
+        piece = buf[8:]
+        print index, begin, len(piece)
+
     PEER_MESSAGES = {
         MESSAGE_CHOKE: _peer_recv_choke,
         MESSAGE_UNCHOKE: _peer_recv_unchoke,
         MESSAGE_INTERESTED: _peer_recv_interested,
         MESSAGE_NOTINTERESTED: _peer_recv_notinterested,
         MESSAGE_HAVE: _peer_recv_have,
-        MESSAGE_BITFIELD: _peer_recv_bitfield
+        MESSAGE_BITFIELD: _peer_recv_bitfield,
+        MESSAGE_PIECE: _peer_recv_piece
     }
 
     def _peer_recv_message(self, p):
