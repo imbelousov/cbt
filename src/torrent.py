@@ -143,7 +143,6 @@ class Torrent(object):
             chr(2)
         ))
         n.send(buf)
-        print n.ip, "gg"
 
     def handle_have(self, n, piece):
         bitfield_len = len(n.bitfield)
