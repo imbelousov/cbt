@@ -71,7 +71,7 @@ class Peer(object):
                 pstr_len = ord(buf[0])
                 if pstr_len == len(Peer.PROTOCOL):
                     # It's a handshake (or extremely huge message (about 318 MB), don't care for it)
-                    if len(buf) <  pstr_len + 49:
+                    if len(buf) < pstr_len + 49:
                         # A handshake is not received completely
                         n.inbox.bad()
                         return
