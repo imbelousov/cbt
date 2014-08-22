@@ -1,23 +1,17 @@
 #!/usr/bin/python2
 
-import time
-
-import peer
-
-
-def on_recv(node, buf):
-    print buf
+import torrent
 
 
 def main():
-    p = peer.Peer()
-    p.append_node("127.0.0.1", 8888)
-    p.on_recv(on_recv)
-    p.connect_all()
+    t = torrent.Torrent("data\\2.torrent", "data\\download")
+    t.stop()
+    print "Connecting to peers..."
+    t.start()
+    print "Started"
     try:
         while True:
-            p.message()
-            time.sleep(0.1)
+            t.message()
     except KeyboardInterrupt:
         pass
 

@@ -1,5 +1,5 @@
 import socket
-import time
+import threading
 
 import convert
 import node
@@ -32,29 +32,36 @@ class Peer(object):
             self.handlers["on_recv_handshake"].append(func)
 
     def connect_all(self):
-        for n in self.nodes:
+        def connect(n):
             try:
                 n.connect()
-                n.last_chunk = time.time()
             except (socket.timeout, socket.error):
                 n.close()
-                self.nodes.remove(n)
+        threads = []
+        for n in self.nodes:
+            thread = threading.Thread(target=connect, args=(n,))
+            threads.append(thread)
+            thread.start()
+        for thread in threads:
+            thread.join()
 
     def message(self):
         for n in self.nodes:
+            if n.closed:
+                continue
             self._message_recv(n)
             self._message_send(n)
 
     def _message_send(self, n):
         try:
-            for x in xrange(len(n.outbox)):
+            outbox_len = len(n.outbox)
+            for x in xrange(outbox_len):
                 chunk = n.outbox[0]
                 n.conn.send(chunk)
                 del n.outbox[0]
             n.outbox = []
         except socket.error:
             n.close()
-            self.nodes.remove(n)
 
     def _message_recv(self, n):
         try:
@@ -103,8 +110,6 @@ class Peer(object):
                 n.inbox.clear()
                 if len(m_buf) < len(buf):
                     n.inbox.append(buf[len(m_buf):])
-
         except socket.error as err:
             if err.errno != 10035:
                 n.close()
-                self.nodes.remove(n)

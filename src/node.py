@@ -28,6 +28,10 @@ class Node(object):
         self.conn = None
         self.inbox = Buf()
         self.outbox = []
+        self.handshaked = False
+        self.bitfield = []
+        self.id = ""
+        self.closed = False
 
     def connect(self):
         self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -38,6 +42,7 @@ class Node(object):
     def close(self):
         self.conn.close()
         self.conn = None
+        self.closed = True
 
     def send(self, buf):
         chunks = []
