@@ -19,10 +19,11 @@ class Tracker(object):
         self.host = host
 
     def request(self, hash, id, port, uploaded, downloaded, left, event):
+        """Overridden methods should return a dictionary of params or None."""
         return None
 
     def is_available(self):
-        """Try to connect to tracker. Return True if connection
+        """Try to connect to tracker through TCP/IP. Return True if connection
         successful and False if not.
 
         """
@@ -48,9 +49,8 @@ class Tracker(object):
 
 class HTTPTracker(Tracker):
     """Regular BitTorrent tracker class.
-    Requests are sent through HTTP messages using
-    GET method. Response is plain/text message:
-    bencoded or empty string.
+    Requests are sent through HTTP messages using GET method.
+    Tracker response is plain/text bencoded or empty string.
 
     """
 
@@ -86,12 +86,12 @@ class HTTPTracker(Tracker):
 class UDPTracker(Tracker):
     """eXtended BitTorrent Tracker class.
     Requests are sent through UDP datagrams.
-    Todo.
 
     """
     DEFAULT_PORT = 2710
 
     def request(self, hash, id, port, uploaded, downloaded, left, event):
+        # TODO: XBTT Tracker request
         return ""
 
 
@@ -99,6 +99,14 @@ def get(url_list):
     """Returns an instance of appropriate tracker class.
     Try to connect to trackers in url_list until one of them
     does not respond.
+
+    Args:
+        url_list: a list of full URLs of all valid trackers for the torrent.
+
+    Returns:
+        An object of appropriate subclass of Tracker that sends requests to
+        the first available tracker in the list or None if there is no
+        available tracker.
 
     """
     tracker_classes = {
