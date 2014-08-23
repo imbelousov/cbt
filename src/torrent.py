@@ -6,6 +6,7 @@ import time
 import bcode
 import convert
 import file
+import piece
 import peer
 import tracker
 
@@ -54,6 +55,7 @@ class Torrent(object):
         self.hash = ""
         self.tracker = None
         self.peer = peer.Peer()
+        self.pieces = []
 
         self.peer.on_recv(self.on_recv)
         self.peer.on_recv_handshake(self.on_recv_handshake)
@@ -81,6 +83,14 @@ class Torrent(object):
                 size=self.meta["info"]["length"]
             )
             self.files.append(f)
+
+        # Load pieces info
+        piece_count = len(self.meta["info"]["pieces"]) / 20
+        piece_length = self.meta["info"]["piece length"]
+        for x in xrange(piece_count):
+            hash = self.meta["info"]["pieces"][x*20:x*20+20]
+            p = piece.Piece(hash, piece_length)
+            self.pieces.append(p)
 
         # Load trackers list and select available
         trackers = []
@@ -160,6 +170,7 @@ class Torrent(object):
                 bit = bool(byte & mask)
                 mask >>= 1
                 n.bitfield.append(bit)
+        print "BITFIELD LEN", len(n.bitfield)
 
     MESSAGE_HAVE = 4
     MESSAGE_BITFIELD = 5

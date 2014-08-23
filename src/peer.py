@@ -1,5 +1,6 @@
 import socket
 import threading
+import time
 
 import convert
 import node
@@ -46,18 +47,28 @@ class Peer(object):
             thread.join()
 
     def message(self):
+        r = range(len(self.nodes))
+        r.reverse()
+        for i in r:
+            if not self.nodes[i].conn:
+                del self.nodes[i]
         for n in self.nodes:
-            if n.closed:
-                continue
             self._message_recv(n)
             self._message_send(n)
+        time.sleep(0.05)
 
     def _message_send(self, n):
         try:
             outbox_len = len(n.outbox)
+            elapsed = time.time() - n.last_send
+            if not outbox_len and elapsed > 100:
+                # Keep-alive message
+                n.conn.send(convert.uint_chr(0))
+                n.last_send = time.time()
             for x in xrange(outbox_len):
                 chunk = n.outbox[0]
                 n.conn.send(chunk)
+                n.last_send = time.time()
                 del n.outbox[0]
             n.outbox = []
         except socket.error:
@@ -68,6 +79,7 @@ class Peer(object):
             chunk = n.conn.recv(node.Node.MAX_CHUNK_SIZE)
             if chunk:
                 n.inbox.append(chunk)
+                n.last_recv = time.time()
             # Check if I need to process a buffer
             if n.inbox.length and n.inbox.length != n.inbox.bad_length:
 
