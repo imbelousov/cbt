@@ -11,6 +11,10 @@ class Peer(object):
     in current BitTorrent network. It provides API for sending and
     receiving messages only and doesn't implement handling of messages.
 
+    Attributes:
+        nodes: a list of all connected, active peers (nodes). Each peer is node.Node object
+        handles: a dict that contains user event handlers
+
     Events:
 
         on_recv:
@@ -40,12 +44,6 @@ class Peer(object):
     PROTOCOL = "BitTorrent protocol"
 
     def __init__(self):
-        """
-        Attributes:
-            nodes: a list of all connected, active peers (nodes). Each peer is node.Node object
-            handles: a dict that contains user event handlers
-
-        """
         self.nodes = []
         self.handlers = {
             "on_recv": [],
@@ -53,14 +51,17 @@ class Peer(object):
         }
 
     def on_recv(self, func):
+        """Add on_recv handler."""
         if func not in self.handlers["on_recv"]:
             self.handlers["on_recv"].append(func)
 
     def on_recv_handshake(self, func):
+        """Add on_recv_handshake handler."""
         if func not in self.handlers["on_recv_handshake"]:
             self.handlers["on_recv_handshake"].append(func)
 
     def append_node(self, ip, port):
+        """Add a peer to peers list before connection."""
         for n in self.nodes:
             if (n.ip, n.port) == (ip, port):
                 return
@@ -68,6 +69,11 @@ class Peer(object):
         self.nodes.append(new_node)
 
     def connect_all(self):
+        """Connect to all peers in the list.
+        Due to the fact that socket.connect() method is blocking
+        connections are established in separate threads.
+
+        """
         def connect(n):
             try:
                 n.connect()
@@ -82,6 +88,12 @@ class Peer(object):
             thread.join()
 
     def message(self):
+        """You have to call this method in a loop.
+        If there is nothing to do this method makes
+        the main thread to sleep for a some time
+        to reduce the load on the processor.
+
+        """
         r = range(len(self.nodes))
         r.reverse()
         for i in r:
@@ -97,6 +109,11 @@ class Peer(object):
             time.sleep(0.5)
 
     def _message_recv(self, n):
+        """Try to receive a single message from the peer
+        and handle it. If the message is not accepted wholly
+        this method will wait.
+
+        """
         chunk = ""
         try:
             chunk = n.conn.recv(node.Node.MAX_CHUNK_SIZE)
@@ -150,6 +167,14 @@ class Peer(object):
                 n.inbox.append(buf[len(m_buf):])
 
     def _message_send(self, n):
+        """Try to send the first message in the queue.
+        If the last message was sent a long enough
+        send a keep-alive message.
+        Supports "delayed sending" - sending the next
+        message after a certain time. Just send a number
+        to peer to wait n seconds.
+
+        """
         try:
             outbox_len = len(n.outbox)
             elapsed = time.time() - n.last_send
