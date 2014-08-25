@@ -43,6 +43,7 @@ class Node(object):
 
         """
         self.bitfield = []
+        self.chunk = None
         self.conn = None
         self.c_choke = True
         self.c_interested = False

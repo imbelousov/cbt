@@ -89,10 +89,9 @@ class Torrent(object):
         self.tracker = None
         self.peer = peer.Peer()
         self.pieces = []
-        self.downloads = []
 
-        self.peer.on_recv(self.on_recv)
-        self.peer.on_recv_handshake(self.on_recv_handshake)
+        self.peer.on_recv(self.handle_message)
+        self.peer.on_recv_handshake(self.handle_handshake)
 
         # Load meta data from .torrent
         with open(self.torrent_path, "rb") as f:
@@ -170,8 +169,24 @@ class Torrent(object):
 
     def message(self):
         self.peer.message()
+        self.download_piece()
+        self.download_chunk()
 
-    def on_recv(self, n, buf):
+    def download_piece(self):
+        pass
+
+    def download_chunk(self):
+        pass
+
+    def get_nodes(self, index):
+        nodes = []
+        for n in self.peer.nodes:
+            if n.chunk or len(n.bitfield) <= index or not n.bitfield[index]:
+                continue
+            nodes.append(n)
+        return nodes
+
+    def handle_message(self, n, buf):
         if not n.handshaked:
             # Invalid peer
             n.close()
@@ -207,7 +222,7 @@ class Torrent(object):
         else:
             print "RECV UNKNOWN", m_type, n.ip
 
-    def on_recv_handshake(self, n, buf):
+    def handle_handshake(self, n, buf):
         pstr_len = ord(buf[0])
         pstr = buf[1:pstr_len+1]
         if pstr != peer.Peer.PROTOCOL:

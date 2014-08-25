@@ -12,8 +12,12 @@ class Peer(object):
     receiving messages only and doesn't implement handling of messages.
 
     Attributes:
-        nodes: a list of all connected, active peers (nodes). Each peer is node.Node object
-        handles: a dict that contains user event handlers
+
+        nodes:
+            A list of all connected, active peers (nodes). Each peer is node.Node object.
+
+        handles:
+            A dict that contains user event handlers.
 
     Events:
 
