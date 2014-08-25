@@ -5,6 +5,8 @@ import time
 import convert
 import node
 
+__all__ = ["Peer"]
+
 
 class Peer(object):
     """This class implements asynchronous exchange with all peers
@@ -120,7 +122,7 @@ class Peer(object):
         """
         chunk = ""
         try:
-            chunk = n.conn.recv(node.Node.MAX_CHUNK_SIZE)
+            chunk = n.conn.recv(node.Node.MAX_PART_SIZE)
         except socket.error as err:
             if err.errno != 10035:
                 n.close()

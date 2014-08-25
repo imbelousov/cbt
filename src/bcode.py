@@ -2,8 +2,12 @@
 Bencode encoding/decoding module.
 
 Functions:
-    bcode.encode(element)   Convert element to bencode string
-    bcode.decode(string)    Convert bencode string to element
+
+    bcode.encode(element):
+        Convert element to bencode string.
+
+    bcode.decode(string):
+        Convert bencode string to element.
 
 Supported element types:
     int

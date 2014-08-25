@@ -1,5 +1,7 @@
 import math
 
+__all__ = ["Chunk", "Piece"]
+
 
 class Chunk(object):
     """A chunk is the smallest part of torrent.

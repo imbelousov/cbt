@@ -21,27 +21,56 @@ class Buf(object):
 
 
 class Node(object):
-    MAX_CHUNK_SIZE = 1024
+    """Each Node object is peer in the BitTorrent network.
+
+    Attributes:
+
+        bitfield:
+            Indicates if each piece is available for download.
+
+        conn:
+            Connection.
+
+        c_choke:
+            Client ignores the peer.
+
+        c_interested:
+            Client is going to download anything from the peer.
+
+        handshaked:
+            Is the peer ready to messaging.
+
+        id:
+            20-byte identifier in the BitTorrent network.
+
+        inbox:
+            Buffer that stores unhandled incoming messages.
+
+        ip:
+            IP address.
+
+        last_recv:
+            When the last chunk was received from the peer.
+
+        last_send:
+            When the last message was sent to the peer.
+
+        outbox:
+            Buffer that stores unsent outgoing messages.
+
+        port:
+            Incoming TCP port.
+
+        p_choke:
+            The peer ignores client.
+
+        p_interested:
+            The peer is going to download anything from client.
+
+    """
+    MAX_PART_SIZE = 1024
 
     def __init__(self, ip, port):
-        """
-        Peer attributes:
-            bitfield: indicates if each piece is available for download
-            conn: connection
-            c_choke: client ignores the peer
-            c_interested: client is going to download anything from the peer
-            handshaked: is the peer ready to messaging
-            id: 20-byte identifier in the BitTorrent network
-            inbox: buffer that stores unhandled incoming messages
-            ip: IP address
-            last_recv: when the last chunk was received from the peer
-            last_send: when the last message was sent to the peer
-            outbox: buffer that stores unsent outgoing messages
-            port: incoming TCP port
-            p_choke: the peer ignores client
-            p_interested: the peer is going to download anything from client
-
-        """
         self.bitfield = []
         self.conn = None
         self.c_choke = True
@@ -71,8 +100,8 @@ class Node(object):
 
     def send(self, buf):
         chunks = []
-        for x in xrange(0, len(buf), Node.MAX_CHUNK_SIZE):
-            chunks.append(buf[x:x+Node.MAX_CHUNK_SIZE])
+        for x in xrange(0, len(buf), Node.MAX_PART_SIZE):
+            chunks.append(buf[x:x+Node.MAX_PART_SIZE])
         self.outbox += chunks
 
     def sleep(self, timeout):
