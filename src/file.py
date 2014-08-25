@@ -4,17 +4,28 @@ __all__ = ["File"]
 
 
 class File(object):
-    def __init__(self, intorrent_path, download_path, size):
+    def __init__(self, intorrent_path, download_path, size, offset):
         """
 
-        intorrent_path - string or list/tuple
-            Path inside the torrent folder
+        Attributes:
 
-        download_path - string
-            Torrent folder path
+            intorrent_path:
+                Path inside the torrent folder.
+                string or iterable
 
-        size - integer
-            Size of the file
+            download_path:
+                Torrent folder path.
+
+            size:
+                Size of the file
+
+            offset:
+                Index of the first byte of the file in the whole torrent
+
+        Methods:
+
+            create():
+                Allocate physical memory on disk for the file.
 
         """
         if type(intorrent_path) is str:
@@ -24,6 +35,7 @@ class File(object):
         self.name = os.sep.join(full_path)
         self.path = os.sep.join(full_path[:-1])
         self.size = size
+        self.offset = offset
 
     def create(self):
         """Allocate physical memory on disk for the file.

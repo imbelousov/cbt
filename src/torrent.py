@@ -83,8 +83,10 @@ class Torrent(object):
     MESSAGE_REQUEST = 6
     MESSAGE_PIECE = 7
 
-    MAX_ACTIVE_PIECES = 1
-    MAX_ACTIVE_CHUNKS = 4
+    MAX_ACTIVE_PIECES = 8
+    MAX_ACTIVE_CHUNKS = 16
+
+    SHOW_FREQUENCY = 5
 
     id = None
     port = None
@@ -104,6 +106,10 @@ class Torrent(object):
         self.peer = peer.Peer()
         self.pieces = []
         self.downloads = []
+        self.downloaded = 0
+        self.downloaded_pieces = 0
+        self.last_show_time = 0
+        self.last_show_downloaded = 0
 
         self.peer.on_recv(self.handle_message)
         self.peer.on_recv_handshake(self.handle_handshake)
@@ -115,20 +121,24 @@ class Torrent(object):
 
         # Load files info
         # Multifile mode
+        offset = 0
         if "files" in self.meta["info"]:
             for file_info in self.meta["info"]["files"]:
                 f = file.File(
                     intorrent_path=file_info["path"],
                     download_path=self.download_path,
-                    size=file_info["length"]
+                    size=file_info["length"],
+                    offset=offset
                 )
+                offset += file_info["length"]
                 self.files.append(f)
         # Singlefile mode
         if "name" and "length" in self.meta["info"]:
             f = file.File(
                 intorrent_path=self.meta["info"]["name"],
                 download_path=self.download_path,
-                size=self.meta["info"]["length"]
+                size=self.meta["info"]["length"],
+                offset=0
             )
             self.files.append(f)
 
@@ -170,6 +180,8 @@ class Torrent(object):
         for n in self.peer.nodes:
             self.send_handshake(n)
             self.send_bitfield(n)
+        self.last_show_time = time.time()
+        self.last_show_downloaded = 0
 
     def stop(self):
         self.tracker.request(
@@ -185,6 +197,7 @@ class Torrent(object):
     def message(self):
         self.peer.message()
         self.download_piece()
+        self.show_info()
 
     def download_piece(self):
         # Try to start to download new piece
@@ -246,8 +259,10 @@ class Torrent(object):
                     p.status = piece.STATUS_EMPTY
                     p.chunks = []
                     break
+                self.write(p.index * len(data), data)
                 p.complete()
-                print "Complete piece", p.index
+                self.downloaded += len(data)
+                self.downloaded_pieces += 1
 
     def get_nodes(self, index):
         nodes = []
@@ -259,6 +274,32 @@ class Torrent(object):
             ):
                 nodes.append(n)
         return nodes
+
+    def show_info(self):
+        cur_time = time.time()
+        if cur_time - self.last_show_time < Torrent.SHOW_FREQUENCY:
+            return
+        downloaded = self.downloaded
+        for p in self.pieces:
+            if p.status != piece.STATUS_DOWNLOAD:
+                continue
+            for c in p.chunks:
+                if not c.buf:
+                    continue
+                downloaded += len(c.buf)
+        progress = max(downloaded - self.last_show_downloaded, 0)
+        self.last_show_downloaded = downloaded
+        length = math.ceil(self.meta["info"]["piece length"] * len(self.meta["info"]["pieces"]) / 20)
+        percent = "%.2f%%" % (downloaded / length * 100)
+        speed = int(progress / (cur_time - self.last_show_time))
+        print "[%s] [%d / %d] [%d Bytes/sec] [Peers: %d]" % (
+            percent,
+            self.downloaded_pieces,
+            len(self.pieces),
+            speed,
+            len(self.downloads)
+        )
+        self.last_show_time = cur_time
 
     def handle_message(self, n, buf):
         if not n.handshaked:
@@ -343,7 +384,6 @@ class Torrent(object):
                 continue
             d.chunk.buf = data
             d.chunk.download = False
-            print "Complete chunk", d.chunk.offset, "in piece", index
             self.downloads.remove(d)
             break
 
@@ -402,3 +442,22 @@ class Torrent(object):
             convert.uint_chr(length)
         ))
         self.send_message(n, buf)
+
+    def write(self, offset, data):
+        this_file = None
+        for f in self.files:
+            if f.offset <= offset and f.offset + f.size > offset:
+                this_file = f
+                break
+        if not this_file:
+            return
+        part_len = 0
+        offset -= this_file.offset
+        if offset + len(data) > this_file.size:
+            part_len = this_file.size - offset
+        if part_len:
+            self.write(offset + part_len, data[part_len:])
+            data = data[:part_len]
+        with open(this_file.name, "r+b") as f:
+            f.seek(offset)
+            f.write(data)
