@@ -1,23 +1,16 @@
 import math
 
-STATUS_EMPTY = 0
-STATUS_UNCHOKE = 1
-STATUS_DOWNLOAD = 2
-STATUS_COMPLETE = 3
-
 
 class Chunk(object):
     def __init__(self, offset):
         self.buf = None
         self.offset = offset
-        self.status = STATUS_EMPTY
+        self.download = False
 
-    def prepare(self):
-        pass
 
-    def complete(self):
-        self.buf = None
-        self.status = STATUS_COMPLETE
+STATUS_EMPTY = 0
+STATUS_DOWNLOAD = 1
+STATUS_COMPLETE = 2
 
 
 class Piece(object):
@@ -33,8 +26,9 @@ class Piece(object):
     def prepare(self):
         chunk_count = int(math.ceil(self.length / Piece.MAX_CHUNK))
         for x in xrange(chunk_count):
-            chunk = Chunk(x * Piece.MAX_CHUNK)
+            chunk = Chunk(x)
             self.chunks.append(chunk)
+        self.status = STATUS_DOWNLOAD
 
     def complete(self):
         self.chunks = []

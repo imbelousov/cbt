@@ -58,6 +58,20 @@ def main_loop():
         pass
 
 
+STATUS_STARTED = 0
+STATUS_UNCHOKING = 1
+STATUS_UNCHOKED = 2
+STATUS_DOWNLOADING = 3
+
+
+class Download(object):
+    def __init__(self):
+        self.piece = None
+        self.chunk = None
+        self.node = None
+        self.status = STATUS_STARTED
+
+
 @collect
 class Torrent(object):
     MESSAGE_CHOKE = 0
@@ -70,7 +84,7 @@ class Torrent(object):
     MESSAGE_PIECE = 7
 
     MAX_ACTIVE_PIECES = 1
-    MAX_ACTIVE_CHUNKS = 1
+    MAX_ACTIVE_CHUNKS = 4
 
     id = None
     port = None
@@ -89,6 +103,7 @@ class Torrent(object):
         self.tracker = None
         self.peer = peer.Peer()
         self.pieces = []
+        self.downloads = []
 
         self.peer.on_recv(self.handle_message)
         self.peer.on_recv_handshake(self.handle_handshake)
@@ -170,20 +185,79 @@ class Torrent(object):
     def message(self):
         self.peer.message()
         self.download_piece()
-        self.download_chunk()
 
     def download_piece(self):
-        pass
+        # Try to start to download new piece
+        active_pieces = sum((1 for p in self.pieces if p.status == piece.STATUS_DOWNLOAD))
+        if active_pieces < Torrent.MAX_ACTIVE_PIECES:
+            for p in self.pieces:
+                if p.status != piece.STATUS_EMPTY:
+                    continue
+                nodes = self.get_nodes(p.index)
+                if not len(nodes):
+                    continue
+                p.prepare()
+                break
 
-    def download_chunk(self):
-        pass
+        # Try to start to download new chunk
+        for p in self.pieces:
+            if p.status != piece.STATUS_DOWNLOAD:
+                continue
+            active_chunks = sum((1 for d in self.downloads if d.piece == p))
+            if active_chunks == Torrent.MAX_ACTIVE_CHUNKS:
+                continue
+            chunks = [c for c in p.chunks if not c.download and not c.buf]
+            nodes = self.get_nodes(p.index)
+            if not len(chunks) or not len(nodes):
+                continue
+            d = Download()
+            d.node = nodes[0]
+            d.chunk = chunks[0]
+            d.chunk.download = True
+            d.piece = p
+            if not d.node.p_choke:
+                d.status = STATUS_UNCHOKED
+            self.downloads.append(d)
+            break
+
+        # Manage chunk downloads
+        for d in self.downloads:
+            if d.status == STATUS_STARTED:
+                self.send_unchoke(d.node)
+                d.node.sleep(5)
+                self.send_interested(d.node)
+                d.status = STATUS_UNCHOKING
+            if d.status == STATUS_UNCHOKED:
+                self.send_request(d.node, d.piece.index, piece.Piece.MAX_CHUNK * d.chunk.offset, piece.Piece.MAX_CHUNK)
+                d.status = STATUS_DOWNLOADING
+
+        # Try to compile a piece
+        for p in self.pieces:
+            if p.status != piece.STATUS_DOWNLOAD:
+                continue
+            is_full = True
+            for c in p.chunks:
+                if not c.buf:
+                    is_full = False
+                    break
+            if is_full:
+                data = "".join((c.buf for c in p.chunks))
+                if p.hash != hashlib.sha1(data).digest():
+                    p.status = piece.STATUS_EMPTY
+                    p.chunks = []
+                    break
+                p.complete()
+                print "Complete piece", p.index
 
     def get_nodes(self, index):
         nodes = []
         for n in self.peer.nodes:
-            if n.chunk or len(n.bitfield) <= index or not n.bitfield[index]:
-                continue
-            nodes.append(n)
+            if (
+                len(n.bitfield) > index
+                and n.bitfield[index]
+                and n not in (d.node for d in self.downloads)
+            ):
+                nodes.append(n)
         return nodes
 
     def handle_message(self, n, buf):
@@ -194,33 +268,25 @@ class Torrent(object):
         if len(buf) == 4 and convert.uint_ord(buf) == 0:
             # Keep-alive message
             n.send(convert.uint_chr(0))
-            print "RECV KEEP-ALIVE", n.ip
             return
         # Other messages
         m_type = ord(buf[4])
         if m_type == Torrent.MESSAGE_CHOKE:
-            print "RECV CHOKE", n.ip
             self.handle_choke(n)
         elif m_type == Torrent.MESSAGE_UNCHOKE:
-            print "RECV UNCHOKE", n.ip
             self.handle_unchoke(n)
         elif m_type == Torrent.MESSAGE_INTERESTED:
-            print "RECV INTERESTED", n.ip
             self.handle_interested(n)
         elif m_type == Torrent.MESSAGE_NOTINTERESTED:
-            print "RECV NOTINTERESTED", n.ip
             self.handle_notinterested(n)
         elif m_type == Torrent.MESSAGE_HAVE:
-            print "RECV HAVE", n.ip
             self.handle_have(n, buf[5:])
         elif m_type == Torrent.MESSAGE_BITFIELD:
-            print "RECV BITFIELD", n.ip
             self.handle_bitfield(n, buf[5:])
         elif m_type == Torrent.MESSAGE_PIECE:
-            print "RECV PIECE", n.ip
             self.handle_piece(n, buf[5:])
         else:
-            print "RECV UNKNOWN", m_type, n.ip
+            pass
 
     def handle_handshake(self, n, buf):
         pstr_len = ord(buf[0])
@@ -234,13 +300,15 @@ class Torrent(object):
             return
         n.id = buf[29+pstr_len:49+pstr_len]
         n.handshaked = True
-        print "RECV HANDSHAKE", n.ip
 
     def handle_choke(self, n):
         n.p_choke = True
 
     def handle_unchoke(self, n):
         n.p_choke = False
+        for d in self.downloads:
+            if d.node == n:
+                d.status = STATUS_UNCHOKED
 
     def handle_interested(self, n):
         n.p_interested = True
@@ -270,9 +338,14 @@ class Torrent(object):
         index = convert.uint_ord(buf[0:4])
         begin = convert.uint_ord(buf[4:8])
         data = buf[8:]
-        print "WOOOOOW", index, begin, len(data)
-        with open("data.txt", "wb") as f:
-            f.write(data)
+        for d in self.downloads:
+            if d.piece.index != index or d.chunk.offset * piece.Piece.MAX_CHUNK != begin:
+                continue
+            d.chunk.buf = data
+            d.chunk.download = False
+            print "Complete chunk", d.chunk.offset, "in piece", index
+            self.downloads.remove(d)
+            break
 
     def send_handshake(self, n):
         buf = "".join((
@@ -294,22 +367,18 @@ class Torrent(object):
     def send_choke(self, n):
         self.send_message(n, chr(Torrent.MESSAGE_CHOKE))
         n.c_choke = True
-        print "SEND CHOKE", n.ip
 
     def send_unchoke(self, n):
         self.send_message(n, chr(Torrent.MESSAGE_UNCHOKE))
         n.c_choke = False
-        print "SEND UNCHOKE", n.ip
 
     def send_interested(self, n):
         self.send_message(n, chr(Torrent.MESSAGE_INTERESTED))
         n.c_interested = True
-        print "SEND INTERESTED", n.ip
 
     def send_notinterested(self, n):
         self.send_message(n, chr(Torrent.MESSAGE_NOTINTERESTED))
         n.c_interested = False
-        print "SEND NOTINTERESTED", n.ip
 
     def send_have(self, n, index):
         buf = "".join((
@@ -317,7 +386,6 @@ class Torrent(object):
             convert.uint_chr(index)
         ))
         self.send_message(n, buf)
-        print "SEND HAVE", n.ip
 
     def send_bitfield(self, n):
         count = int(math.ceil(len(self.pieces) / 8))
@@ -334,4 +402,3 @@ class Torrent(object):
             convert.uint_chr(length)
         ))
         self.send_message(n, buf)
-        print "SEND REQUEST", n.ip
