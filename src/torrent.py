@@ -58,18 +58,17 @@ def main_loop():
         pass
 
 
-STATUS_STARTED = 0
-STATUS_UNCHOKING = 1
-STATUS_UNCHOKED = 2
-STATUS_DOWNLOADING = 3
-
-
 class Download(object):
+    STATUS_STARTED = 0
+    STATUS_UNCHOKING = 1
+    STATUS_UNCHOKED = 2
+    STATUS_DOWNLOADING = 3
+
     def __init__(self):
         self.piece = None
         self.chunk = None
         self.node = None
-        self.status = STATUS_STARTED
+        self.status = Download.STATUS_STARTED
 
 
 @collect
@@ -201,10 +200,10 @@ class Torrent(object):
 
     def download_piece(self):
         # Try to start to download new piece
-        active_pieces = sum((1 for p in self.pieces if p.status == piece.STATUS_DOWNLOAD))
+        active_pieces = sum((1 for p in self.pieces if p.status == piece.Piece.STATUS_DOWNLOAD))
         if active_pieces < Torrent.MAX_ACTIVE_PIECES:
             for p in self.pieces:
-                if p.status != piece.STATUS_EMPTY:
+                if p.status != piece.Piece.STATUS_EMPTY:
                     continue
                 nodes = self.get_nodes(p.index)
                 if not len(nodes):
@@ -214,7 +213,7 @@ class Torrent(object):
 
         # Try to start to download new chunk
         for p in self.pieces:
-            if p.status != piece.STATUS_DOWNLOAD:
+            if p.status != piece.Piece.STATUS_DOWNLOAD:
                 continue
             active_chunks = sum((1 for d in self.downloads if d.piece == p))
             if active_chunks == Torrent.MAX_ACTIVE_CHUNKS:
@@ -229,24 +228,24 @@ class Torrent(object):
             d.chunk.download = True
             d.piece = p
             if not d.node.p_choke:
-                d.status = STATUS_UNCHOKED
+                d.status = Download.STATUS_UNCHOKED
             self.downloads.append(d)
             break
 
         # Manage chunk downloads
         for d in self.downloads:
-            if d.status == STATUS_STARTED:
+            if d.status == Download.STATUS_STARTED:
                 self.send_unchoke(d.node)
                 d.node.sleep(5)
                 self.send_interested(d.node)
-                d.status = STATUS_UNCHOKING
-            if d.status == STATUS_UNCHOKED:
-                self.send_request(d.node, d.piece.index, piece.Piece.MAX_CHUNK * d.chunk.offset, piece.Piece.MAX_CHUNK)
-                d.status = STATUS_DOWNLOADING
+                d.status = Download.STATUS_UNCHOKING
+            if d.status == Download.STATUS_UNCHOKED:
+                self.send_request(d.node, d.piece.index, piece.Chunk.SIZE * d.chunk.offset, piece.Chunk.SIZE)
+                d.status = Download.STATUS_DOWNLOADING
 
         # Try to compile a piece
         for p in self.pieces:
-            if p.status != piece.STATUS_DOWNLOAD:
+            if p.status != piece.Piece.STATUS_DOWNLOAD:
                 continue
             is_full = True
             for c in p.chunks:
@@ -256,7 +255,7 @@ class Torrent(object):
             if is_full:
                 data = "".join((c.buf for c in p.chunks))
                 if p.hash != hashlib.sha1(data).digest():
-                    p.status = piece.STATUS_EMPTY
+                    p.status = piece.Piece.STATUS_EMPTY
                     p.chunks = []
                     break
                 self.write(p.index * len(data), data)
@@ -281,7 +280,7 @@ class Torrent(object):
             return
         downloaded = self.downloaded
         for p in self.pieces:
-            if p.status != piece.STATUS_DOWNLOAD:
+            if p.status != piece.Piece.STATUS_DOWNLOAD:
                 continue
             for c in p.chunks:
                 if not c.buf:
@@ -349,7 +348,7 @@ class Torrent(object):
         n.p_choke = False
         for d in self.downloads:
             if d.node == n:
-                d.status = STATUS_UNCHOKED
+                d.status = Download.STATUS_UNCHOKED
 
     def handle_interested(self, n):
         n.p_interested = True
@@ -380,7 +379,7 @@ class Torrent(object):
         begin = convert.uint_ord(buf[4:8])
         data = buf[8:]
         for d in self.downloads:
-            if d.piece.index != index or d.chunk.offset * piece.Piece.MAX_CHUNK != begin:
+            if d.piece.index != index or d.chunk.offset * piece.Chunk.SIZE != begin:
                 continue
             d.chunk.buf = data
             d.chunk.download = False
@@ -444,20 +443,16 @@ class Torrent(object):
         self.send_message(n, buf)
 
     def write(self, offset, data):
-        this_file = None
         for f in self.files:
-            if f.offset <= offset and f.offset + f.size > offset:
-                this_file = f
+            if f.offset <= offset < f.offset + f.size:
+                part_len = False
+                offset -= f.offset
+                if offset + len(data) > f.size:
+                    part_len = f.size - offset
+                if part_len:
+                    self.write(offset + part_len, data[part_len:])
+                    data = data[:part_len]
+                with open(f.name, "r+b") as fd:
+                    fd.seek(offset)
+                    fd.write(data)
                 break
-        if not this_file:
-            return
-        part_len = 0
-        offset -= this_file.offset
-        if offset + len(data) > this_file.size:
-            part_len = this_file.size - offset
-        if part_len:
-            self.write(offset + part_len, data[part_len:])
-            data = data[:part_len]
-        with open(this_file.name, "r+b") as f:
-            f.seek(offset)
-            f.write(data)
