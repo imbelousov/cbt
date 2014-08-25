@@ -5,6 +5,7 @@ class Chunk(object):
     """A chunk is the smallest part of torrent.
     All data is downloaded with a lot of chunks.
     Some consecutive chunks constitute a piece.
+    Each chunk can store SIZE bytes.
 
     Attributes:
 
