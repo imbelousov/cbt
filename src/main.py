@@ -9,11 +9,9 @@ def main():
     print "Connecting to peers..."
     t.start()
     print "Started"
-    try:
-        while True:
-            t.message()
-    except KeyboardInterrupt:
-        pass
+    torrent.main_loop()
+    print "Stopping..."
+    t.stop()
 
 if __name__ == "__main__":
     main()

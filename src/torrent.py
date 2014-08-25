@@ -1,4 +1,5 @@
 import hashlib
+import math
 import os
 import socket
 import time
@@ -11,6 +12,16 @@ import peer
 import tracker
 
 VERSION = "-CB0101-"
+
+collected = []
+
+
+def collect(cls):
+    class Collector(cls):
+        def __init__(self, *args, **kwargs):
+            super(Collector, self).__init__(*args, **kwargs)
+            collected.append(self)
+    return Collector
 
 
 def gen_id():
@@ -38,7 +49,29 @@ def gen_port(start=6881, end=6890):
     raise socket.error("Unable to listen any BitTorrent port")
 
 
+def main_loop():
+    try:
+        while True:
+            for obj in collected:
+                obj.message()
+    except KeyboardInterrupt:
+        pass
+
+
+@collect
 class Torrent(object):
+    MESSAGE_CHOKE = 0
+    MESSAGE_UNCHOKE = 1
+    MESSAGE_INTERESTED = 2
+    MESSAGE_NOTINTERESTED = 3
+    MESSAGE_HAVE = 4
+    MESSAGE_BITFIELD = 5
+    MESSAGE_REQUEST = 6
+    MESSAGE_PIECE = 7
+
+    MAX_ACTIVE_PIECES = 1
+    MAX_ACTIVE_CHUNKS = 1
+
     id = None
     port = None
 
@@ -56,6 +89,7 @@ class Torrent(object):
         self.tracker = None
         self.peer = peer.Peer()
         self.pieces = []
+        self.downloads = []
 
         self.peer.on_recv(self.on_recv)
         self.peer.on_recv_handshake(self.on_recv_handshake)
@@ -89,7 +123,7 @@ class Torrent(object):
         piece_length = self.meta["info"]["piece length"]
         for x in xrange(piece_count):
             hash = self.meta["info"]["pieces"][x*20:x*20+20]
-            p = piece.Piece(hash, piece_length)
+            p = piece.Piece(hash, piece_length, len(self.pieces))
             self.pieces.append(p)
 
         # Load trackers list and select available
@@ -115,19 +149,13 @@ class Torrent(object):
         )
         if type(response["peers"]) is str:
             for x in xrange(0, len(response["peers"]), 6):
-                ip = ".".join([str(ord(byte)) for byte in response["peers"][x:x+4]])
+                ip = ".".join((str(ord(byte)) for byte in response["peers"][x:x+4]))
                 port = convert.uint_ord(response["peers"][x+4:x+6])
                 self.peer.append_node(ip, port)
         self.peer.connect_all()
-        buf = "".join((
-            chr(len(peer.Peer.PROTOCOL)),
-            peer.Peer.PROTOCOL,
-            convert.uint_chr(0, 8),
-            self.hash,
-            Torrent.id
-        ))
         for n in self.peer.nodes:
-            n.send(buf)
+            self.send_handshake(n)
+            self.send_bitfield(n)
 
     def stop(self):
         self.tracker.request(
@@ -140,56 +168,44 @@ class Torrent(object):
             event="stopped"
         )
 
-    def send_unchoke(self, n):
-        buf = "".join((
-            convert.uint_chr(1),
-            chr(1)
-        ))
-        n.send(buf)
-
-    def send_interested(self, n):
-        buf = "".join((
-            convert.uint_chr(1),
-            chr(2)
-        ))
-        n.send(buf)
-
-    def handle_have(self, n, piece):
-        bitfield_len = len(n.bitfield)
-        if piece >= bitfield_len:
-            for _ in xrange(bitfield_len - piece + 1):
-                n.bitfield.append(False)
-        n.bitfield[piece] = True
-
-    def handle_bitfield(self, n, buf):
-        n.bitfield = []
-        for byte in buf:
-            mask = 0x80
-            byte = ord(byte)
-            for x in xrange(8):
-                bit = bool(byte & mask)
-                mask >>= 1
-                n.bitfield.append(bit)
-        print "BITFIELD LEN", len(n.bitfield)
-
-    MESSAGE_HAVE = 4
-    MESSAGE_BITFIELD = 5
+    def message(self):
+        self.peer.message()
 
     def on_recv(self, n, buf):
         if not n.handshaked:
+            # Invalid peer
             n.close()
             return
         if len(buf) == 4 and convert.uint_ord(buf) == 0:
             # Keep-alive message
             n.send(convert.uint_chr(0))
-            print "KA", n.ip
+            print "RECV KEEP-ALIVE", n.ip
             return
+        # Other messages
         m_type = ord(buf[4])
-        if m_type == Torrent.MESSAGE_HAVE:
-            self.handle_have(n, convert.uint_ord(buf[5:9]))
+        if m_type == Torrent.MESSAGE_CHOKE:
+            print "RECV CHOKE", n.ip
+            self.handle_choke(n)
+        elif m_type == Torrent.MESSAGE_UNCHOKE:
+            print "RECV UNCHOKE", n.ip
+            self.handle_unchoke(n)
+        elif m_type == Torrent.MESSAGE_INTERESTED:
+            print "RECV INTERESTED", n.ip
+            self.handle_interested(n)
+        elif m_type == Torrent.MESSAGE_NOTINTERESTED:
+            print "RECV NOTINTERESTED", n.ip
+            self.handle_notinterested(n)
+        elif m_type == Torrent.MESSAGE_HAVE:
+            print "RECV HAVE", n.ip
+            self.handle_have(n, buf[5:])
         elif m_type == Torrent.MESSAGE_BITFIELD:
+            print "RECV BITFIELD", n.ip
             self.handle_bitfield(n, buf[5:])
-        print "ME", m_type, n.ip
+        elif m_type == Torrent.MESSAGE_PIECE:
+            print "RECV PIECE", n.ip
+            self.handle_piece(n, buf[5:])
+        else:
+            print "RECV UNKNOWN", m_type, n.ip
 
     def on_recv_handshake(self, n, buf):
         pstr_len = ord(buf[0])
@@ -203,7 +219,104 @@ class Torrent(object):
             return
         n.id = buf[29+pstr_len:49+pstr_len]
         n.handshaked = True
-        print "HS", n.ip
+        print "RECV HANDSHAKE", n.ip
 
-    def message(self):
-        self.peer.message()
+    def handle_choke(self, n):
+        n.p_choke = True
+
+    def handle_unchoke(self, n):
+        n.p_choke = False
+
+    def handle_interested(self, n):
+        n.p_interested = True
+
+    def handle_notinterested(self, n):
+        n.p_interested = False
+
+    def handle_have(self, n, buf):
+        index = convert.uint_ord(buf[0:4])
+        bitfield_len = len(n.bitfield)
+        if index >= bitfield_len:
+            for _ in xrange(bitfield_len - index + 1):
+                n.bitfield.append(False)
+        n.bitfield[index] = True
+
+    def handle_bitfield(self, n, buf):
+        n.bitfield = []
+        for byte in buf:
+            mask = 0x80
+            byte = ord(byte)
+            for x in xrange(8):
+                bit = bool(byte & mask)
+                mask >>= 1
+                n.bitfield.append(bit)
+
+    def handle_piece(self, n, buf):
+        index = convert.uint_ord(buf[0:4])
+        begin = convert.uint_ord(buf[4:8])
+        data = buf[8:]
+        print "WOOOOOW", index, begin, len(data)
+        with open("data.txt", "wb") as f:
+            f.write(data)
+
+    def send_handshake(self, n):
+        buf = "".join((
+            chr(len(peer.Peer.PROTOCOL)),
+            peer.Peer.PROTOCOL,
+            convert.uint_chr(0, 8),
+            self.hash,
+            Torrent.id
+        ))
+        n.send(buf)
+
+    def send_message(self, n, message):
+        buf = "".join((
+            convert.uint_chr(len(message)),
+            message
+        ))
+        n.send(buf)
+
+    def send_choke(self, n):
+        self.send_message(n, chr(Torrent.MESSAGE_CHOKE))
+        n.c_choke = True
+        print "SEND CHOKE", n.ip
+
+    def send_unchoke(self, n):
+        self.send_message(n, chr(Torrent.MESSAGE_UNCHOKE))
+        n.c_choke = False
+        print "SEND UNCHOKE", n.ip
+
+    def send_interested(self, n):
+        self.send_message(n, chr(Torrent.MESSAGE_INTERESTED))
+        n.c_interested = True
+        print "SEND INTERESTED", n.ip
+
+    def send_notinterested(self, n):
+        self.send_message(n, chr(Torrent.MESSAGE_NOTINTERESTED))
+        n.c_interested = False
+        print "SEND NOTINTERESTED", n.ip
+
+    def send_have(self, n, index):
+        buf = "".join((
+            chr(Torrent.MESSAGE_HAVE),
+            convert.uint_chr(index)
+        ))
+        self.send_message(n, buf)
+        print "SEND HAVE", n.ip
+
+    def send_bitfield(self, n):
+        count = int(math.ceil(len(self.pieces) / 8))
+        buf = [chr(Torrent.MESSAGE_BITFIELD)]
+        for _ in xrange(count):
+            buf.append(chr(0))
+        self.send_message(n, "".join(buf))
+
+    def send_request(self, n, index, begin, length):
+        buf = "".join((
+            chr(Torrent.MESSAGE_REQUEST),
+            convert.uint_chr(index),
+            convert.uint_chr(begin),
+            convert.uint_chr(length)
+        ))
+        self.send_message(n, buf)
+        print "SEND REQUEST", n.ip

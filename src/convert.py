@@ -8,10 +8,9 @@ def uint_chr(uint_val, size=4):
     """
     bytes = []
     for _ in xrange(size):
-        bytes.insert(0, uint_val % 0x100)
+        bytes.insert(0, chr(uint_val % 0x100))
         uint_val /= 0x100
-    bytes_list = [chr(byte) for byte in bytes]
-    return "".join(bytes_list)
+    return "".join(bytes)
 
 
 def uint_ord(bytes):
