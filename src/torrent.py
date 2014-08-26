@@ -18,6 +18,10 @@ collected = []
 
 
 def collect(cls):
+    """Decorator that collect all created Torrent objects
+    to call their message() methods in the loop.
+
+    """
     class Collector(cls):
         def __init__(self, *args, **kwargs):
             super(Collector, self).__init__(*args, **kwargs)
@@ -26,6 +30,14 @@ def collect(cls):
 
 
 def gen_id():
+    """Generate an unique 20-byte string to identification
+    a client in BitTorrent network. The first 8 bytes
+    indicates type and version of a client and next
+    12 bytes are random. Random 12-byte string generates
+    from SHA1-hash of concatenation of main process ID
+    and current time.
+
+    """
     pid = os.getpid()
     timestamp = time.time()
     unique_str = "".join((
@@ -41,6 +53,10 @@ def gen_id():
 
 
 def gen_port(start=6881, end=6890):
+    """Return the first unused port in the range
+    or raise socket.error if there is no one.
+
+    """
     for port in xrange(start, end):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         result = sock.connect_ex(('127.0.0.1', port))
