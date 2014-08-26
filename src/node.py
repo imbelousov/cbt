@@ -67,7 +67,24 @@ class Node(object):
         p_interested:
             The peer is going to download anything from client.
 
+    Methods:
+
+        close():
+            Close the connection to the peer and clear buffers.
+
+        connect():
+            Try to connect to the peer in CONNECTION_TIMEOUT seconds.
+
+        send(data):
+            Put the data in the outbox buffer queue. The data will be
+            divided into pieces of MAX_PART_SIZE bytes or less.
+
+        sleep(timeout):
+            Suspend sending of next messages for a <timeout> seconds.
+
     """
+
+    CONNECTION_TIMEOUT = 2
     MAX_PART_SIZE = 1024
 
     def __init__(self, ip, port):
@@ -87,22 +104,41 @@ class Node(object):
         self.p_interested = False
 
     def close(self):
+        """Close the connection to the peer and clear buffers."""
         self.inbox = Buf()
         self.outbox = []
         self.conn.close()
         self.conn = None
 
     def connect(self):
+        """Try to connect to the peer in CONNECTION_TIMEOUT seconds."""
         self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.conn.settimeout(2)
+        self.conn.settimeout(Node.CONNECTION_TIMEOUT)
         self.conn.connect((self.ip, self.port))
         self.conn.setblocking(False)
 
-    def send(self, buf):
+    def send(self, data):
+        """Put the data in the outbox buffer queue. The data will be
+        divided into pieces of MAX_PART_SIZE bytes or less.
+
+        """
         chunks = []
-        for x in xrange(0, len(buf), Node.MAX_PART_SIZE):
-            chunks.append(buf[x:x+Node.MAX_PART_SIZE])
+        for x in xrange(0, len(data), Node.MAX_PART_SIZE):
+            chunks.append(data[x:x+Node.MAX_PART_SIZE])
         self.outbox += chunks
 
     def sleep(self, timeout):
+        """Suspend sending of next messages for a <timeout> seconds.
+        Notice: time is counted from the current time, so
+            node.sleep(2)
+            node.send("Foo")
+            node.sleep(2)
+            node.send("bar")
+        will send "Foobar" instantly after 2 seconds. You need to use this:
+            node.sleep(2)
+            node.send("Foo")
+            node.sleep(4)
+            node.send("bar")
+
+        """
         self.outbox.append(int(time.time() + timeout))

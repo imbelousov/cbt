@@ -1,6 +1,7 @@
 import hashlib
 import math
 import os
+import random
 import socket
 import time
 
@@ -69,6 +70,35 @@ class Download(object):
         self.chunk = None
         self.node = None
         self.status = Download.STATUS_STARTED
+        self.started_at = time.time()
+
+
+class Info(object):
+    def __init__(self):
+        self.total_downloaded = 0
+        self.total_downloaded_pieces = 0
+        self.session_downloaded = 0
+        self.session_started_at = 0
+
+    def downloaded(self, size):
+        self.total_downloaded += size
+        self.session_downloaded += size
+
+    def finished_piece(self):
+        self.total_downloaded_pieces += 1
+
+    def session_start(self):
+        self.session_started_at = time.time()
+        self.session_downloaded = 0
+
+    def session_time(self):
+        return time.time() - self.session_started_at
+
+    def session_speed(self):
+        t = self.session_time()
+        if t == 0:
+            return 0
+        return int(self.session_downloaded / t)
 
 
 @collect
@@ -81,6 +111,7 @@ class Torrent(object):
     MESSAGE_BITFIELD = 5
     MESSAGE_REQUEST = 6
     MESSAGE_PIECE = 7
+    MESSAGE_CANCEL = 8
 
     MAX_ACTIVE_PIECES = 8
     MAX_ACTIVE_CHUNKS = 16
@@ -105,10 +136,7 @@ class Torrent(object):
         self.peer = peer.Peer()
         self.pieces = []
         self.downloads = []
-        self.downloaded = 0
-        self.downloaded_pieces = 0
-        self.last_show_time = 0
-        self.last_show_downloaded = 0
+        self.info = Info()
 
         self.peer.on_recv(self.handle_message)
         self.peer.on_recv_handshake(self.handle_handshake)
@@ -179,8 +207,17 @@ class Torrent(object):
         for n in self.peer.nodes:
             self.send_handshake(n)
             self.send_bitfield(n)
-        self.last_show_time = time.time()
-        self.last_show_downloaded = 0
+
+    def regular_request(self):
+        result = self.tracker.request(
+            hash=self.hash,
+            id=Torrent.id,
+            port=Torrent.port,
+            uploaded=0,
+            downloaded=self.downloaded,
+            left=0,
+            event=""
+        )
 
     def stop(self):
         self.tracker.request(
@@ -199,7 +236,7 @@ class Torrent(object):
         self.show_info()
 
     def download_piece(self):
-        # Try to start to download new piece
+        # Try to start to download a new piece
         active_pieces = sum((1 for p in self.pieces if p.status == piece.Piece.STATUS_DOWNLOAD))
         if active_pieces < Torrent.MAX_ACTIVE_PIECES:
             for p in self.pieces:
@@ -211,7 +248,7 @@ class Torrent(object):
                 p.prepare()
                 break
 
-        # Try to start to download new chunk
+        # Try to start to download a new chunk
         for p in self.pieces:
             if p.status != piece.Piece.STATUS_DOWNLOAD:
                 continue
@@ -223,7 +260,7 @@ class Torrent(object):
             if not len(chunks) or not len(nodes):
                 continue
             d = Download()
-            d.node = nodes[0]
+            d.node = random.choice(nodes)
             d.chunk = chunks[0]
             d.chunk.download = True
             d.piece = p
@@ -233,6 +270,7 @@ class Torrent(object):
             break
 
         # Manage chunk downloads
+        cur_time = time.time()
         for d in self.downloads:
             if d.status == Download.STATUS_STARTED:
                 self.send_unchoke(d.node)
@@ -242,8 +280,19 @@ class Torrent(object):
             if d.status == Download.STATUS_UNCHOKED:
                 self.send_request(d.node, d.piece.index, piece.Chunk.SIZE * d.chunk.offset, piece.Chunk.SIZE)
                 d.status = Download.STATUS_DOWNLOADING
+            if cur_time - d.started_at > 30:
+                if d.status == Download.STATUS_DOWNLOADING:
+                    self.send_cancel(d.node, d.piece.index, piece.Chunk.SIZE * d.chunk.offset, piece.Chunk.SIZE)
+                d.chunk.download = False
+                self.downloads.remove(d)
+                break
+            if d.node not in self.peer.nodes:
+                d.chunk.download = False
+                self.downloads.remove(d)
+                break
 
-        # Try to compile a piece
+        # Try to compile a piece from chunks
+        # TODO: drag this to handle_piece to reduce the load
         for p in self.pieces:
             if p.status != piece.Piece.STATUS_DOWNLOAD:
                 continue
@@ -260,8 +309,8 @@ class Torrent(object):
                     break
                 self.write(p.index * len(data), data)
                 p.complete()
-                self.downloaded += len(data)
-                self.downloaded_pieces += 1
+                self.info.downloaded(len(data))
+                self.info.finished_piece()
 
     def get_nodes(self, index):
         nodes = []
@@ -275,10 +324,10 @@ class Torrent(object):
         return nodes
 
     def show_info(self):
-        cur_time = time.time()
-        if cur_time - self.last_show_time < Torrent.SHOW_FREQUENCY:
+        if self.info.session_time() < Torrent.SHOW_FREQUENCY:
             return
-        downloaded = self.downloaded
+        speed = self.info.session_speed()
+        downloaded = self.info.total_downloaded
         for p in self.pieces:
             if p.status != piece.Piece.STATUS_DOWNLOAD:
                 continue
@@ -286,19 +335,16 @@ class Torrent(object):
                 if not c.buf:
                     continue
                 downloaded += len(c.buf)
-        progress = max(downloaded - self.last_show_downloaded, 0)
-        self.last_show_downloaded = downloaded
+        self.info.session_start()
         length = math.ceil(self.meta["info"]["piece length"] * len(self.meta["info"]["pieces"]) / 20)
-        percent = "%.2f%%" % (downloaded / length * 100)
-        speed = int(progress / (cur_time - self.last_show_time))
-        print "[%s] [%d / %d] [%d Bytes/sec] [Peers: %d]" % (
-            percent,
-            self.downloaded_pieces,
-            len(self.pieces),
-            speed,
-            len(self.downloads)
+        progress = "%.2f%%" % (downloaded / length * 100)
+        print "[%s] [Speed: %.1f KB/s] [Chunks: %d] [Peers: %d] [Downloaded: %.0f KB]" % (
+            progress,
+            speed / 1024.0,
+            len(self.downloads),
+            len(self.peer.nodes),
+            downloaded / 1024.0
         )
-        self.last_show_time = cur_time
 
     def handle_message(self, n, buf):
         if not n.handshaked:
@@ -436,6 +482,15 @@ class Torrent(object):
     def send_request(self, n, index, begin, length):
         buf = "".join((
             chr(Torrent.MESSAGE_REQUEST),
+            convert.uint_chr(index),
+            convert.uint_chr(begin),
+            convert.uint_chr(length)
+        ))
+        self.send_message(n, buf)
+
+    def send_cancel(self, n, index, begin, length):
+        buf = "".join((
+            chr(Torrent.MESSAGE_CANCEL),
             convert.uint_chr(index),
             convert.uint_chr(begin),
             convert.uint_chr(length)

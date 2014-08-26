@@ -47,6 +47,9 @@ class Peer(object):
             You have to call this method in a loop.
 
     """
+
+    DOWNTIME = 0.5
+    KEEP_ALIVE_TIMEOUT = 100
     PROTOCOL = "BitTorrent protocol"
 
     def __init__(self):
@@ -112,7 +115,7 @@ class Peer(object):
             if n.inbox.length or len(n.outbox):
                 is_buffers_empty = False
         if is_buffers_empty:
-            time.sleep(0.5)
+            time.sleep(Peer.DOWNTIME)
 
     def _message_recv(self, n):
         """Try to receive a single message from the peer
@@ -184,11 +187,12 @@ class Peer(object):
         try:
             outbox_len = len(n.outbox)
             elapsed = time.time() - n.last_send
-            if not outbox_len and elapsed > 100:
+            if not outbox_len and elapsed > Peer.KEEP_ALIVE_TIMEOUT:
                 # Keep-alive message
                 n.conn.send(convert.uint_chr(0))
                 n.last_send = time.time()
-            for x in xrange(outbox_len):
+            # Send all messages in the buffer
+            for _ in xrange(outbox_len):
                 chunk = n.outbox[0]
                 if type(chunk) is int:
                     # "Sleep" message
@@ -196,9 +200,11 @@ class Peer(object):
                     if time.time() > timestamp:
                         del n.outbox[0]
                     return
+                # Send the first message in the queue and remove it from the queue
                 n.conn.send(chunk)
                 n.last_send = time.time()
                 del n.outbox[0]
             n.outbox = []
         except socket.error:
+            # Peer closed the connection
             n.close()
