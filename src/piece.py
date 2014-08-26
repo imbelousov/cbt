@@ -22,6 +22,7 @@ class Chunk(object):
             Is chunk active or not.
 
     """
+
     SIZE = 16384
 
     def __init__(self, offset):
@@ -75,6 +76,7 @@ class Piece(object):
             Clear chunks list and set the status to STATUS_COMPLETE.
 
     """
+
     STATUS_EMPTY = 0
     STATUS_DOWNLOAD = 1
     STATUS_COMPLETE = 2

@@ -13,6 +13,7 @@ class Tracker(object):
     Doesn't fully implement network communication.
 
     """
+
     DEFAULT_PORT = None
 
     def __init__(self, host):
@@ -88,6 +89,7 @@ class UDPTracker(Tracker):
     Requests are sent through UDP datagrams.
 
     """
+
     DEFAULT_PORT = 2710
 
     def request(self, hash, id, port, uploaded, downloaded, left, event):
