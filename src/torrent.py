@@ -3,6 +3,7 @@ import math
 import os
 import random
 import socket
+import sys
 import time
 
 import bcode
@@ -95,6 +96,7 @@ class Info(object):
         self.total_downloaded_pieces = 0
         self.session_downloaded = 0
         self.session_started_at = 0
+        self.info_str = ""
 
     def downloaded(self, size):
         self.total_downloaded += size
@@ -131,8 +133,9 @@ class Torrent(object):
 
     MAX_ACTIVE_PIECES = 8
     MAX_ACTIVE_CHUNKS = 16
+    MAX_ACTIVE_REQUESTS = 1
 
-    SHOW_FREQUENCY = 5
+    SHOW_FREQUENCY = 1
 
     id = None
     port = None
@@ -334,7 +337,7 @@ class Torrent(object):
             if (
                 len(n.bitfield) > index
                 and n.bitfield[index]
-                and n not in (d.node for d in self.downloads)
+                and sum((1 for d in self.downloads if d.node == n)) < Torrent.MAX_ACTIVE_REQUESTS
             ):
                 nodes.append(n)
         return nodes
@@ -354,13 +357,19 @@ class Torrent(object):
         self.info.session_start()
         length = math.ceil(self.meta["info"]["piece length"] * len(self.meta["info"]["pieces"]) / 20)
         progress = "%.2f%%" % (downloaded / length * 100)
-        print "[%s] [Speed: %.1f KB/s] [Chunks: %d] [Peers: %d] [Downloaded: %.0f KB]" % (
+        old_len = len(self.info.info_str)
+        self.info.info_str = "[%s] [%s] [Speed: %d KB/s] [Chunks: %d] [Peers: %d] [Downloaded: %d KB]" % (
+            self.torrent_path.split(os.sep)[-1],
             progress,
             speed / 1024.0,
             len(self.downloads),
             len(self.peer.nodes),
             downloaded / 1024.0
         )
+        sys.stdout.write(self.info.info_str)
+        for _ in xrange(max(old_len - len(self.info.info_str), 0)):
+            sys.stdout.write(" ")
+        sys.stdout.write("\r")
 
     def handle_message(self, n, buf):
         if not n.handshaked:

@@ -4,12 +4,13 @@ import torrent
 
 
 def main():
-    t = torrent.Torrent("data\\2.torrent", "data\\download")
+    t = torrent.Torrent("data\\1.torrent", "data\\download")
     t.stop()
     print "Connecting to peers..."
     t.start()
     print "Started"
     torrent.main_loop()
+    print ""
     print "Stopping..."
     t.stop()
 
