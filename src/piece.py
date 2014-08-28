@@ -18,9 +18,6 @@ class Chunk(object):
         offset:
             Offset inside the piece.
 
-        download:
-            Is chunk active or not.
-
     """
 
     SIZE = 16384
@@ -28,7 +25,6 @@ class Chunk(object):
     def __init__(self, offset):
         self.buf = None
         self.offset = offset
-        self.download = False
 
 
 class Piece(object):
