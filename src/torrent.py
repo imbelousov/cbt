@@ -373,21 +373,21 @@ class Torrent(object):
             return
         speed = self.info.session_speed()
         downloaded = self.info.total_downloaded
-        for p in self.pieces:
+        """for p in self.pieces:
             if p.status != piece.Piece.STATUS_DOWNLOAD:
                 continue
             for c in p.chunks:
                 if not c.buf:
                     continue
-                downloaded += len(c.buf)
+                downloaded += len(c.buf)"""
         self.info.session_start()
         length = math.ceil(self.meta["info"]["piece length"] * len(self.meta["info"]["pieces"]) / 20)
         progress = "%.2f%%" % (downloaded / length * 100)
-        self.info.info_str = "[%s] [%s] [Speed: %d KB/s] [Chunks: %d] [Peers: %d] [Downloaded: %d KB]" % (
+        self.info.info_str = "[%s] [%s] [%d KB/s] [%d / %d] [%d KB]" % (
             self.torrent_path.split(os.sep)[-1],
             progress,
             speed / 1024.0,
-            len(self.downloads.list),
+            len(self.downloads.nodes),
             len(self.peer.nodes),
             downloaded / 1024.0
         )
