@@ -5,6 +5,7 @@ import socket
 import time
 
 import bcode
+import chunk
 import convert
 import file
 import piece
@@ -213,6 +214,9 @@ class Torrent(object):
         # Multifile mode
         offset = 0
         if "files" in self.meta["info"]:
+            if self.download_path[-1] != os.sep:
+                self.download_path += os.sep
+            self.download_path += self.meta["info"]["name"]
             for file_info in self.meta["info"]["files"]:
                 f = file.File(
                     intorrent_path=file_info["path"],
@@ -343,8 +347,8 @@ class Torrent(object):
                     self.send_request(
                         d.node,
                         d.piece.index,
-                        d.chunk.offset * piece.Chunk.SIZE,
-                        piece.Chunk.SIZE
+                        d.chunk.offset * chunk.Chunk.SIZE,
+                        chunk.Chunk.SIZE
                     )
 
             # Check if the piece is completed
@@ -445,8 +449,8 @@ class Torrent(object):
                 self.send_request(
                     d.node,
                     d.piece.index,
-                    d.chunk.offset * piece.Chunk.SIZE,
-                    piece.Chunk.SIZE
+                    d.chunk.offset * chunk.Chunk.SIZE,
+                    chunk.Chunk.SIZE
                 )
 
     def handle_interested(self, n):
@@ -480,7 +484,7 @@ class Torrent(object):
         index = convert.uint_ord(buf[0:4])
         begin = convert.uint_ord(buf[4:8])
         data = buf[8:]
-        chunk_offset = begin / piece.Chunk.SIZE
+        chunk_offset = begin / chunk.Chunk.SIZE
         if index >= len(self.pieces) or chunk_offset >= len(self.pieces[index].chunks):
             n.close()
             return

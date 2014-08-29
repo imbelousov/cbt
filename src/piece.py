@@ -1,30 +1,8 @@
+import chunk
+
 import math
 
-__all__ = ["Chunk", "Piece"]
-
-
-class Chunk(object):
-    """A chunk is the smallest part of torrent.
-    All data is downloaded with a lot of chunks.
-    Some consecutive chunks constitute a piece.
-    Each chunk can store SIZE bytes.
-
-    Attributes:
-
-        buf:
-            Stores downloaded data. None if the chunk
-            isn't downloaded.
-
-        offset:
-            Offset inside the piece.
-
-    """
-
-    SIZE = 16384
-
-    def __init__(self, offset):
-        self.buf = None
-        self.offset = offset
+__all__ = ["Piece"]
 
 
 class Piece(object):
@@ -89,10 +67,10 @@ class Piece(object):
         the status to STATUS_DOWNLOAD.
 
         """
-        chunk_count = int(math.ceil(self.length / Chunk.SIZE))
+        chunk_count = int(math.ceil(self.length / chunk.Chunk.SIZE))
         for x in xrange(chunk_count):
-            chunk = Chunk(x)
-            self.chunks.append(chunk)
+            c = chunk.Chunk(x)
+            self.chunks.append(c)
         self.status = Piece.STATUS_DOWNLOAD
 
     def complete(self):
