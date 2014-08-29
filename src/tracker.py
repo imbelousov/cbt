@@ -17,6 +17,7 @@ class Tracker(object):
     DEFAULT_PORT = None
 
     def __init__(self, host):
+        assert self.DEFAULT_PORT is not None
         self.host = host
 
     def request(self, hash, id, port, uploaded, downloaded, left, event):
