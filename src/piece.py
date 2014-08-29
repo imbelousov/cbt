@@ -1,5 +1,3 @@
-import chunk
-
 import math
 
 __all__ = ["Piece"]
@@ -18,7 +16,7 @@ class Piece(object):
             The piece isn't started to download yet.
 
         STATUS_DOWNLOAD:
-            Download of the piece is started buf not finished.
+            Download of the piece is started but not finished.
 
         STATUS_COMPLETE:
             The piece is successfully downloaded.
@@ -26,7 +24,7 @@ class Piece(object):
     Attributes:
 
         chunks:
-            List of chunks of the piece.
+            List of chunk buffers of the piece.
 
         hash:
             SHA1-hash of piece data for verification.
@@ -55,25 +53,23 @@ class Piece(object):
     STATUS_DOWNLOAD = 1
     STATUS_COMPLETE = 2
 
+    CHUNK = 1 << 14
+
     def __init__(self, hash, length, index):
-        self.chunks = []
+        self.chunks_buf = []
+        self.chunks_map = []
+        self.active_chunks = 0
         self.hash = hash
         self.index = index
         self.length = length
-        self.status = Piece.STATUS_EMPTY
 
-    def prepare(self):
-        """Prepare all chunks of the piece to download and set
-        the status to STATUS_DOWNLOAD.
+    def alloc(self):
+        """Prepare all chunks of the piece to download."""
+        chunk_count = int(math.ceil(self.length / Piece.CHUNK))
+        for _ in xrange(chunk_count):
+            self.chunks_buf.append(None)
+            self.chunks_map.append(Piece.STATUS_EMPTY)
 
-        """
-        chunk_count = int(math.ceil(self.length / chunk.Chunk.SIZE))
-        for x in xrange(chunk_count):
-            c = chunk.Chunk(x)
-            self.chunks.append(c)
-        self.status = Piece.STATUS_DOWNLOAD
-
-    def complete(self):
-        """Clear chunks list and set the status to STATUS_COMPLETE."""
+    def clear(self):
+        """Clear chunks list."""
         self.chunks = []
-        self.status = Piece.STATUS_COMPLETE

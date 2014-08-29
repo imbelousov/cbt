@@ -87,8 +87,11 @@ class Node(object):
     CONNECTION_TIMEOUT = 2
     MAX_PART_SIZE = 1024
 
+    WAITING_UNCHOKING = -1
+
     def __init__(self, ip, port):
         self.bitfield = []
+        self.busy = False
         self.conn = None
         self.c_choke = True
         self.c_interested = False
@@ -117,6 +120,23 @@ class Node(object):
         self.conn.connect((self.ip, self.port))
         self.conn.setblocking(False)
 
+    def get_piece(self, index):
+        """Return True if the peer has the piece."""
+        if 0 <= index < len(self.bitfield):
+            return self.bitfield[index]
+        else:
+            return False
+
+    def set_piece(self, index, have=True):
+        """Remember that the peer has the piece."""
+        if index < 0:
+            return
+        b_len = len(self.bitfield)
+        if index >= b_len:
+            for _ in xrange(index - b_len + 1):
+                self.bitfield.append(False)
+        self.bitfield[index] = have
+
     def send(self, data):
         """Put the data in the outbox buffer queue. The data will be
         divided into pieces of MAX_PART_SIZE bytes or less.
@@ -142,3 +162,6 @@ class Node(object):
 
         """
         self.outbox.append(int(time.time() + timeout))
+
+    def wait_for_unchoke(self):
+        self.outbox.append(Node.WAITING_UNCHOKING)

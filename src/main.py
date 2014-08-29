@@ -10,7 +10,6 @@ def main():
     t.start()
     print "Started"
     torrent.main_loop()
-    print ""
     print "Stopping..."
     t.stop()
 
