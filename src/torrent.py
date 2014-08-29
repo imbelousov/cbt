@@ -75,7 +75,7 @@ def main_loop():
                 if not result:
                     wait = True
             if wait:
-                time.sleep(0.005)
+                time.sleep(0.001)
     except KeyboardInterrupt:
         pass
 

@@ -3,7 +3,7 @@ import hashlib
 import piece
 
 class Downloader(object):
-    MAX_ACTIVE_PIECES = 8
+    MAX_ACTIVE_PIECES = 16
     MAX_ACTIVE_CHUNKS = 16
 
     def __init__(self, nodes_list, pieces_list):
@@ -59,6 +59,6 @@ class Downloader(object):
                 print "Downloaded piece %d, Remaining: %d, Active: %d" % (
                     index,
                     len(self.inactive_pieces) + len(self.active_pieces),
-                    len(self.active_pieces)
+                    min(len(self.active_pieces), len(self.active_nodes))
                 )
                 self.active_pieces.remove(self.all_pieces[index])
