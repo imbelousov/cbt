@@ -4,6 +4,36 @@ import piece
 
 
 class Downloader(object):
+    """This tells which chunks of which pieces you should
+    start to download from which peers. It remember all
+    pieces and chunks statuses and how many requests
+    was sent to each peer. If a chunk was downloaded
+    you have to tell it to this with finish() method.
+
+    Methods:
+
+        next():
+            Tell what chunks need to be downloaded now.
+            Return a list of tuples: (node, piece, chunk)
+            where node - from what peer you can download,
+            piece - index of a downloadable piece and
+            chunk - index of an empty chunk inside the piece.
+
+        finish(node, piece, chunk, data):
+            You have to tell if you have downloaded a chunk.
+            You can do that with this method. It stores data,
+            checks if the piece is fully downloaded and if it
+            is, checks if the piece is valid and writes the piece
+            to the disk.
+
+        downloaded():
+            Return length of all downloaded data in bytes including bad.
+
+        total():
+            Return length of all torrent in bytes.
+
+    """
+
     MAX_ACTIVE_PIECES = 16
     MAX_ACTIVE_CHUNKS = 16
     MAX_REQUESTS = 4
@@ -18,6 +48,13 @@ class Downloader(object):
         self.downloaded_bytes = 0
 
     def next(self):
+        """Tell what chunks need to be downloaded now.
+        Return a list of tuples: (node, piece, chunk)
+        where node - from what peer you can download,
+        piece - index of a downloadable piece and
+        chunk - index of an empty chunk inside the piece.
+
+        """
         nodes_pieces_chunks = []
         # Get all idle nodes
         idle_nodes = self._idle_nodes()
@@ -62,6 +99,13 @@ class Downloader(object):
         return nodes_pieces_chunks
 
     def finish(self, n, index, chunk, data):
+        """You have to tell if you have downloaded a chunk.
+        You can do that with this method. It stores data,
+        checks if the piece is fully downloaded and if it
+        is, checks if the piece is valid and writes the piece
+        to the disk.
+
+        """
         n.active -= 1
         p = self.all_pieces[index]
         p.chunks_map[chunk] = piece.Piece.STATUS_COMPLETE
@@ -86,12 +130,18 @@ class Downloader(object):
                 self.active_pieces.remove(p)
 
     def downloaded(self):
+        """Return length of all downloaded data in bytes including bad."""
         return self.downloaded_bytes
 
     def total(self):
+        """Return length of all torrent in bytes."""
         return len(self.all_pieces) * self.all_pieces[0].chunks_count * piece.Piece.CHUNK
 
     def _idle_nodes(self):
+        """Return list of all peers which download less than MAX_REQUESTS chunks
+        at the moment.
+
+        """
         nodes = []
         for n in self.all_nodes:
             if n.active < Downloader.MAX_REQUESTS:
