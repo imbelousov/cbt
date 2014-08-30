@@ -11,8 +11,7 @@ import file
 import piece
 import peer
 import tracker
-
-VERSION = "-CB0101-"
+import version
 
 collected = []
 
@@ -46,8 +45,8 @@ def gen_id():
     ))
     hash = hashlib.sha1(unique_str).digest()
     id = "".join((
-        VERSION,
-        hash[len(VERSION):]
+        version.CLIENT_IDENTIFIER,
+        hash[len(version.CLIENT_IDENTIFIER):]
     ))
     return id
 
@@ -104,7 +103,6 @@ class Torrent(object):
         # Attributes declaration
         self.download_path = download_path
         self.downloader = None
-        self.files = []
         self.hash = ""
         self.meta = {}
         self.peer = peer.Peer()
@@ -121,6 +119,17 @@ class Torrent(object):
             self.meta = bcode.decode(f.read())
         self.hash = hashlib.sha1(bcode.encode(self.meta["info"])).digest()
 
+        # Load pieces info
+        piece_count = len(self.meta["info"]["pieces"]) / 20
+        piece_length = self.meta["info"]["piece length"]
+        for x in xrange(piece_count):
+            hash = self.meta["info"]["pieces"][x*20:x*20+20]
+            p = piece.Piece(hash, piece_length, len(self.pieces))
+            self.pieces.append(p)
+
+        # Init downloader
+        self.downloader = downloader.Downloader(self.peer.nodes, self.pieces)
+
         # Load files info
         # Multifile mode
         offset = 0
@@ -136,7 +145,7 @@ class Torrent(object):
                     offset=offset
                 )
                 offset += file_info["length"]
-                self.files.append(f)
+                self.downloader.writer.append_file(f)
         # Singlefile mode
         if "name" and "length" in self.meta["info"]:
             f = file.File(
@@ -145,15 +154,7 @@ class Torrent(object):
                 size=self.meta["info"]["length"],
                 offset=0
             )
-            self.files.append(f)
-
-        # Load pieces info
-        piece_count = len(self.meta["info"]["pieces"]) / 20
-        piece_length = self.meta["info"]["piece length"]
-        for x in xrange(piece_count):
-            hash = self.meta["info"]["pieces"][x*20:x*20+20]
-            p = piece.Piece(hash, piece_length, len(self.pieces))
-            self.pieces.append(p)
+            self.downloader.writer.append_file(f)
 
         # Load trackers list and select available
         trackers = []
@@ -164,12 +165,8 @@ class Torrent(object):
                 trackers.append(item[0])
         self.tracker = tracker.get(trackers)
 
-        # Init downloader
-        self.downloader = downloader.Downloader(self.peer.nodes, self.pieces)
-
     def start(self):
-        for f in self.files:
-            f.create()
+        self.downloader.writer.create_files()
         response = self.tracker.request(
             hash=self.hash,
             id=Torrent.id,

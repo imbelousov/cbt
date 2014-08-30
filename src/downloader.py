@@ -1,6 +1,7 @@
 import hashlib
 
 import piece
+import writer
 
 
 class Downloader(object):
@@ -32,6 +33,11 @@ class Downloader(object):
         total():
             Return length of all torrent in bytes.
 
+    Attributes:
+
+        writer:
+            A writer.Writer object for this torrent.
+
     """
 
     MAX_ACTIVE_PIECES = 16
@@ -46,6 +52,7 @@ class Downloader(object):
         # Pieces which are not started yet
         self.inactive_pieces = pieces[:]
         self.downloaded_bytes = 0
+        self.writer = writer.Writer()
 
     def next(self):
         """Tell what chunks need to be downloaded now.
@@ -111,10 +118,6 @@ class Downloader(object):
         p.chunks_map[chunk] = piece.Piece.STATUS_COMPLETE
         p.chunks_buf[chunk] = data
         self.downloaded_bytes += len(data)
-        print "%d / %d" % (
-            self.downloaded(),
-            self.total()
-        )
         is_full = True
         for buf in p.chunks_buf:
             if not buf:
@@ -128,6 +131,7 @@ class Downloader(object):
                 p.alloc()
             else:
                 self.active_pieces.remove(p)
+                self.writer.write(p.index * p.length, p_data)
 
     def downloaded(self):
         """Return length of all downloaded data in bytes including bad."""
