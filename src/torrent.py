@@ -288,8 +288,7 @@ class Torrent(object):
         begin = convert.uint_ord(buf[4:8])
         chunk = int(begin / piece.Piece.CHUNK)
         data = buf[8:]
-        self.pieces[index].chunks_buf[chunk] = data
-        self.downloader.finish(n, index, chunk)
+        self.downloader.finish(n, index, chunk, data)
         self.download_something()
 
     def send_handshake(self, n):

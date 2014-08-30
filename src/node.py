@@ -90,8 +90,8 @@ class Node(object):
     WAITING_UNCHOKING = -1
 
     def __init__(self, ip, port):
+        self.active = 0
         self.bitfield = []
-        self.busy = False
         self.conn = None
         self.c_choke = True
         self.c_interested = False

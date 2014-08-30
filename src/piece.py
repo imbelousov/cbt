@@ -56,20 +56,21 @@ class Piece(object):
     CHUNK = 1 << 14
 
     def __init__(self, hash, length, index):
+        self.active = 0
         self.chunks_buf = []
         self.chunks_map = []
-        self.active_chunks = 0
         self.hash = hash
         self.index = index
         self.length = length
+        self.chunks_count = int(math.ceil(self.length / Piece.CHUNK))
 
     def alloc(self):
         """Prepare all chunks of the piece to download."""
-        chunk_count = int(math.ceil(self.length / Piece.CHUNK))
-        for _ in xrange(chunk_count):
+        for _ in xrange(self.chunks_count):
             self.chunks_buf.append(None)
             self.chunks_map.append(Piece.STATUS_EMPTY)
 
     def clear(self):
         """Clear chunks list."""
-        self.chunks = []
+        self.chunks_buf = []
+        self.chunks_map = []
