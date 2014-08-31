@@ -68,6 +68,9 @@ def gen_port(start=6881, end=6890):
 
 
 def main_loop():
+    SHOW_PROGRESS_EVERY = 2
+
+    ts = time.time()
     try:
         while True:
             wait = True
@@ -75,6 +78,9 @@ def main_loop():
                 result = obj.message()
                 if not result:
                     wait = True
+                if time.time() - ts >= SHOW_PROGRESS_EVERY:
+                    print obj
+                    ts = time.time()
             if wait:
                 time.sleep(0.001)
     except KeyboardInterrupt:
@@ -169,6 +175,9 @@ class Torrent(object):
         self.peer.on_recv_handshake(self.handle_handshake)
         self.downloader.on_piece_downloaded(self.handle_piece)
         self.downloader.on_cancel(self.handle_cancel_download)
+
+    def __str__(self):
+        return self._to_string()
 
     def start(self):
         self.writer.create_files()
@@ -365,3 +374,15 @@ class Torrent(object):
             convert.uint_chr(length)
         ))
         self.send_message(n, buf)
+
+    def _to_string(self):
+        requested_nodes, all_nodes = self.downloader.nodes_count()
+        string = "[%s] [%.1f%%] [%d KB / %d KB] [Peers: %d / %d]" % (
+            self.torrent_path.split(os.sep)[-1],
+            self.downloader.progress() * 100.0,
+            self.downloader.downloaded() / 1024.0,
+            self.downloader.total() / 1024.0,
+            requested_nodes,
+            all_nodes
+        )
+        return string

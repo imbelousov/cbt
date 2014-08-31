@@ -57,6 +57,12 @@ class Downloader(object):
         downloaded():
             Return length of all downloaded data in bytes including bad.
 
+        nodes_count():
+            Return a tuple (active peers, all peers).
+
+        progress():
+            Return download progress from 0.0 to 1.0 (by downloaded pieces).
+
         total():
             Return length of all torrent in bytes.
 
@@ -155,7 +161,6 @@ class Downloader(object):
             if p_hash != p.hash:
                 p.alloc()
             else:
-                print (len(self.inactive_pieces) + len(self.active_pieces))
                 self.active_pieces.remove(p)
                 for func in self.handlers["on_piece_downloaded"]:
                     func(n, p.index, p_data)
@@ -170,6 +175,18 @@ class Downloader(object):
     def downloaded(self):
         """Return length of all downloaded data in bytes including bad."""
         return self.downloaded_bytes
+
+    def nodes_count(self):
+        """Return a tuple (active peers, all peers)."""
+        all_len = len(self.all_nodes)
+        empty_len = len(self._idle_nodes(only_empty=True))
+        return all_len - empty_len, all_len
+
+    def progress(self):
+        """Return download progress from 0.0 to 1.0 (by downloaded pieces)."""
+        all_len = float(len(self.all_pieces))
+        not_downloaded_len = float(len(self.active_pieces) + len(self.inactive_pieces))
+        return 1.0 - not_downloaded_len / all_len
 
     def total(self):
         """Return length of all torrent in bytes."""
@@ -191,14 +208,17 @@ class Downloader(object):
         for func in self.handlers["on_cancel"]:
             func(r.node, r.piece, r.chunk)
 
-    def _idle_nodes(self):
+    def _idle_nodes(self, only_empty=False):
         """Return list of all peers which download less than MAX_REQUESTS chunks
-        at the moment.
+        at the moment. If only_empty is True return only peers to which was
+        sent no one request.
 
         """
         nodes = []
         for n in self.all_nodes:
-            if n.active < Downloader.MAX_REQUESTS:
+            if n.active < Downloader.MAX_REQUESTS and not only_empty:
+                nodes.append(n)
+            if n.active == 0 and only_empty:
                 nodes.append(n)
         return nodes
 
@@ -261,4 +281,5 @@ class Downloader(object):
         return new_requests
 
     def _next_end_of_game(self):
+        # TODO: End of game
         return []
