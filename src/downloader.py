@@ -85,6 +85,7 @@ class Downloader(object):
 
     """
 
+    END_OF_GAME_ON = 4
     MAX_ACTIVE_PIECES = 16
     MAX_ACTIVE_CHUNKS = 16
     MAX_REQUESTS = 4
@@ -121,7 +122,7 @@ class Downloader(object):
         Return a list of request.Request objects.
 
         """
-        end_of_game = False
+        end_of_game = len(self.active_pieces) + len(self.inactive_pieces) <= Downloader.END_OF_GAME_ON
         if end_of_game:
             new_requests = self._next_end_of_game()
         else:
@@ -281,5 +282,30 @@ class Downloader(object):
         return new_requests
 
     def _next_end_of_game(self):
-        # TODO: End of game
-        return []
+        new_requests = []
+
+        for p in self.inactive_pieces:
+            p.alloc()
+            self.active_pieces.append(p)
+        self.inactive_pieces = []
+
+        for p in self.active_pieces:
+            for chunk in xrange(len(p.chunks_map)):
+                if p.active >= Downloader.MAX_ACTIVE_CHUNKS:
+                    break
+                if p.chunks_map[chunk] == piece.Piece.STATUS_EMPTY:
+                    nodes = []
+                    for n in self.all_nodes:
+                        if n.get_piece(p.index):
+                            nodes.append(n)
+                    if len(nodes):
+                        p.chunks_map[chunk] = piece.Piece.STATUS_DOWNLOAD
+                        n = random.choice(nodes)
+                        n.active += 1
+                        if n.active == Downloader.MAX_REQUESTS:
+                            nodes.remove(n)
+                        r = request.Request(n, p.index, chunk)
+                        new_requests.append(r)
+                        self.requests.append(r)
+
+        return new_requests
