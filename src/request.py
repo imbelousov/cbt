@@ -7,3 +7,6 @@ class Request(object):
         self.piece = piece
         self.chunk = chunk
         self.started_at = time.time()
+
+    def elapsed(self):
+        return time.time() - self.started_at

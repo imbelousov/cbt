@@ -1,6 +1,5 @@
 import hashlib
 import random
-import time
 
 import piece
 import request
@@ -116,6 +115,95 @@ class Downloader(object):
         Return a list of request.Request objects.
 
         """
+        end_of_game = False
+        if end_of_game:
+            new_requests = self._next_end_of_game()
+        else:
+            new_requests = self._next_normal()
+        return new_requests
+
+    def finish(self, n, index, chunk, data):
+        """You have to tell if you have downloaded a chunk.
+        You can do that with this method. It stores data,
+        checks if the piece is fully downloaded and if it
+        is, checks if the piece is valid and writes the piece
+        to the disk.
+
+        """
+        n.active -= 1
+        if len(self.all_pieces) <= index:
+            return
+        p = self.all_pieces[index]
+        if len(p.chunks_map) <= chunk:
+            return
+        p.chunks_map[chunk] = piece.Piece.STATUS_COMPLETE
+        p.chunks_buf[chunk] = data
+        self.downloaded_bytes += len(data)
+        is_full = True
+        for buf in p.chunks_buf:
+            if not buf:
+                is_full = False
+                break
+        for r in self.requests:
+            if (r.node, r.piece, r.chunk) == (n, index, chunk):
+                self.requests.remove(r)
+                break
+        if is_full:
+            p_data = "".join(p.chunks_buf)
+            p_hash = hashlib.sha1(p_data).digest()
+            p.clear()
+            if p_hash != p.hash:
+                p.alloc()
+            else:
+                print (len(self.inactive_pieces) + len(self.active_pieces))
+                self.active_pieces.remove(p)
+                for func in self.handlers["on_piece_downloaded"]:
+                    func(n, p.index, p_data)
+
+    def message(self):
+        """Call this in main cycle. It removes timeouts from downloads."""
+        for r in self.requests:
+            if r.elapsed() >= Downloader.TIMEOUT:
+                self._cancel(r)
+                break
+
+    def downloaded(self):
+        """Return length of all downloaded data in bytes including bad."""
+        return self.downloaded_bytes
+
+    def total(self):
+        """Return length of all torrent in bytes."""
+        return len(self.all_pieces) * self.all_pieces[0].chunks_count * piece.Piece.CHUNK
+
+    def _cancel(self, r):
+        """Remove the request (r) from active requests, rollback
+        all statuses to initial state and call on_cancel handlers.
+
+        """
+        self.requests.remove(r)
+        if r.node in self.all_nodes:
+            r.node.active -= 1
+        if (
+            r.piece < len(self.all_pieces)
+            and r.chunk < len(self.all_pieces[r.piece].chunks_map)
+        ):
+            self.all_pieces[r.piece].chunks_map[r.chunk] = piece.Piece.STATUS_EMPTY
+        for func in self.handlers["on_cancel"]:
+            func(r.node, r.piece, r.chunk)
+
+    def _idle_nodes(self):
+        """Return list of all peers which download less than MAX_REQUESTS chunks
+        at the moment.
+
+        """
+        nodes = []
+        for n in self.all_nodes:
+            if n.active < Downloader.MAX_REQUESTS:
+                nodes.append(n)
+        return nodes
+
+    def _next_normal(self):
+        """Compile a list of new requests in normal mode."""
         new_requests = []
         # Get all idle nodes
         idle_nodes = self._idle_nodes()
@@ -172,83 +260,5 @@ class Downloader(object):
 
         return new_requests
 
-    def finish(self, n, index, chunk, data):
-        """You have to tell if you have downloaded a chunk.
-        You can do that with this method. It stores data,
-        checks if the piece is fully downloaded and if it
-        is, checks if the piece is valid and writes the piece
-        to the disk.
-
-        """
-        n.active -= 1
-        if len(self.all_pieces) <= index:
-            return
-        p = self.all_pieces[index]
-        if len(p.chunks_map) <= chunk:
-            return
-        p.chunks_map[chunk] = piece.Piece.STATUS_COMPLETE
-        p.chunks_buf[chunk] = data
-        self.downloaded_bytes += len(data)
-        is_full = True
-        for buf in p.chunks_buf:
-            if not buf:
-                is_full = False
-                break
-        for r in self.requests:
-            if (r.node, r.piece, r.chunk) == (n, index, chunk):
-                self.requests.remove(r)
-                break
-        if is_full:
-            p_data = "".join(p.chunks_buf)
-            p_hash = hashlib.sha1(p_data).digest()
-            p.clear()
-            if p_hash != p.hash:
-                p.alloc()
-            else:
-                print (len(self.inactive_pieces) + len(self.active_pieces))
-                self.active_pieces.remove(p)
-                for func in self.handlers["on_piece_downloaded"]:
-                    func(n, p.index, p_data)
-
-    def message(self):
-        """Call this in main cycle. It removes timeouts from downloads."""
-        cur_time = time.time()
-        for r in self.requests:
-            if cur_time - r.started_at >= Downloader.TIMEOUT:
-                self._cancel(r)
-                break
-
-    def downloaded(self):
-        """Return length of all downloaded data in bytes including bad."""
-        return self.downloaded_bytes
-
-    def total(self):
-        """Return length of all torrent in bytes."""
-        return len(self.all_pieces) * self.all_pieces[0].chunks_count * piece.Piece.CHUNK
-
-    def _idle_nodes(self):
-        """Return list of all peers which download less than MAX_REQUESTS chunks
-        at the moment.
-
-        """
-        nodes = []
-        for n in self.all_nodes:
-            if n.active < Downloader.MAX_REQUESTS:
-                nodes.append(n)
-        return nodes
-
-    def _cancel(self, r):
-        """Remove the request (r) from active requests, rollback
-        all statuses to initial state and call on_cancel handlers.
-
-        """
-        self.requests.remove(r)
-        if r.node in self.all_nodes:
-            r.node.active -= 1
-        if (
-            r.piece < len(self.all_pieces)
-            and r.chunk < len(self.all_pieces[r.piece].chunks_map)
-        ):
-            self.all_pieces[r.piece].chunks_map[r.chunk] = piece.Piece.STATUS_EMPTY
-        for func in self.handlers["on_cancel"]:
-            func(r.node, r.piece, r.chunk)
+    def _next_end_of_game(self):
+        return []
