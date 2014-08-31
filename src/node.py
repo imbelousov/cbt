@@ -87,7 +87,11 @@ class Node(object):
     CONNECTION_TIMEOUT = 2
     MAX_PART_SIZE = 1024
 
-    WAITING_UNCHOKING = -1
+    MESSAGE_WAITING_UNCHOKING = -1
+
+    FALSE = 0
+    WAITING = 1
+    TRUE = 2
 
     def __init__(self, ip, port):
         self.active = 0
@@ -103,7 +107,7 @@ class Node(object):
         self.last_send = 0
         self.outbox = []
         self.port = port
-        self.p_choke = True
+        self.p_choke = Node.TRUE
         self.p_interested = False
 
     def close(self):
@@ -164,4 +168,4 @@ class Node(object):
         self.outbox.append(int(time.time() + timeout))
 
     def wait_for_unchoke(self):
-        self.outbox.append(Node.WAITING_UNCHOKING)
+        self.outbox.append(Node.MESSAGE_WAITING_UNCHOKING)

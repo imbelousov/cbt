@@ -53,6 +53,7 @@ class Peer(object):
 
     def __init__(self):
         self.nodes = []
+        self.potential_nodes = []
         self.handlers = {
             "on_recv": [],
             "on_recv_handshake": []
@@ -75,6 +76,10 @@ class Peer(object):
                 return
         new_node = node.Node(ip, port)
         self.nodes.append(new_node)
+        for n in self.potential_nodes:
+            if (n.ip, n.port) == (ip, port):
+                return
+        self.potential_nodes.append(new_node)
 
     def connect_all(self):
         """Connect to all peers in the list.
@@ -190,9 +195,9 @@ class Peer(object):
             # Send all messages in the buffer
             for _ in xrange(outbox_len):
                 chunk = n.outbox[0]
-                if chunk == node.Node.WAITING_UNCHOKING:
+                if chunk == node.Node.MESSAGE_WAITING_UNCHOKING:
                     # Wait for unchoke
-                    if not n.p_choke:
+                    if n.p_choke != node.Node.FALSE:
                         del n.outbox[0]
                     return
                 if type(chunk) is int:

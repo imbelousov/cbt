@@ -8,10 +8,12 @@ import bcode
 import convert
 import downloader
 import file
+import node
 import piece
 import peer
 import tracker
 import version
+import writer
 
 collected = []
 
@@ -109,10 +111,7 @@ class Torrent(object):
         self.pieces = []
         self.torrent_path = torrent_path
         self.tracker = None
-
-        # Events handlers
-        self.peer.on_recv(self.handle_message)
-        self.peer.on_recv_handshake(self.handle_handshake)
+        self.writer = writer.Writer()
 
         # Load meta data from .torrent
         with open(self.torrent_path, "rb") as f:
@@ -145,7 +144,7 @@ class Torrent(object):
                     offset=offset
                 )
                 offset += file_info["length"]
-                self.downloader.writer.append_file(f)
+                self.writer.append_file(f)
         # Singlefile mode
         if "name" and "length" in self.meta["info"]:
             f = file.File(
@@ -154,7 +153,7 @@ class Torrent(object):
                 size=self.meta["info"]["length"],
                 offset=0
             )
-            self.downloader.writer.append_file(f)
+            self.writer.append_file(f)
 
         # Load trackers list and select available
         trackers = []
@@ -165,8 +164,14 @@ class Torrent(object):
                 trackers.append(item[0])
         self.tracker = tracker.get(trackers)
 
+        # Events handlers
+        self.peer.on_recv(self.handle_message)
+        self.peer.on_recv_handshake(self.handle_handshake)
+        self.downloader.on_piece_downloaded(self.handle_piece)
+        self.downloader.on_cancel(self.handle_cancel_download)
+
     def start(self):
-        self.downloader.writer.create_files()
+        self.writer.create_files()
         response = self.tracker.request(
             hash=self.hash,
             id=Torrent.id,
@@ -184,7 +189,6 @@ class Torrent(object):
         self.peer.connect_all()
         for n in self.peer.nodes:
             self.send_handshake(n)
-            self.send_bitfield(n)
 
     def stop(self):
         self.tracker.request(
@@ -199,15 +203,16 @@ class Torrent(object):
 
     def message(self):
         self.peer.message()
+        self.downloader.message()
 
-    def download_something(self):
-        for n, index, chunk in self.downloader.next():
-            if n.p_choke:
-                self.send_unchoke(n)
-                n.sleep(5)
-                self.send_interested(n)
-                n.wait_for_unchoke()
-            self.send_request(n, index, chunk * piece.Piece.CHUNK, piece.Piece.CHUNK)
+    def download_chunks(self):
+        for request in self.downloader.next():
+            if request.node.p_choke == node.Node.TRUE:
+                self.send_unchoke(request.node)
+                self.send_interested(request.node)
+                request.node.wait_for_unchoke()
+                request.node.p_choke = node.Node.WAITING
+            self.send_request(request.node, request.piece, request.chunk * piece.Piece.CHUNK, piece.Piece.CHUNK)
 
     def handle_message(self, n, buf):
         if not n.handshaked:
@@ -234,7 +239,7 @@ class Torrent(object):
         elif m_type == Torrent.MESSAGE_BITFIELD:
             self.handle_bitfield(n, buf[5:])
         elif m_type == Torrent.MESSAGE_PIECE:
-            self.handle_piece(n, buf[5:])
+            self.handle_chunk(n, buf[5:])
 
     def handle_handshake(self, n, buf):
         if n.handshaked:
@@ -253,10 +258,10 @@ class Torrent(object):
         n.handshaked = True
 
     def handle_choke(self, n):
-        n.p_choke = True
+        n.p_choke = node.Node.TRUE
 
     def handle_unchoke(self, n):
-        n.p_choke = False
+        n.p_choke = node.Node.FALSE
 
     def handle_interested(self, n):
         n.p_interested = True
@@ -267,7 +272,7 @@ class Torrent(object):
     def handle_have(self, n, buf):
         index = convert.uint_ord(buf[0:4])
         n.set_piece(index)
-        self.download_something()
+        self.download_chunks()
 
     def handle_bitfield(self, n, buf):
         n.bitfield = []
@@ -278,15 +283,23 @@ class Torrent(object):
                 bit = bool(byte & mask)
                 mask >>= 1
                 n.bitfield.append(bit)
-        self.download_something()
+        self.download_chunks()
 
-    def handle_piece(self, n, buf):
+    def handle_chunk(self, n, buf):
         index = convert.uint_ord(buf[0:4])
         begin = convert.uint_ord(buf[4:8])
         chunk = int(begin / piece.Piece.CHUNK)
         data = buf[8:]
         self.downloader.finish(n, index, chunk, data)
-        self.download_something()
+        self.download_chunks()
+
+    def handle_piece(self, n, index, data):
+        self.writer.write(index * len(data), data)
+
+    def handle_cancel_download(self, n, index, chunk):
+        if n in self.peer.nodes:
+            self.send_cancel(n, index, chunk * piece.Piece.CHUNK, piece.Piece.CHUNK)
+        self.download_chunks()
 
     def send_handshake(self, n):
         buf = "".join((

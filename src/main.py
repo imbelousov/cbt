@@ -4,7 +4,7 @@ import torrent
 
 
 def main():
-    t = torrent.Torrent("data\\1.torrent", "data\\download")
+    t = torrent.Torrent("data\\3.torrent", "data\\download")
     t.stop()
     print "Connecting to peers..."
     t.start()
