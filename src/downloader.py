@@ -85,7 +85,6 @@ class Downloader(object):
 
     """
 
-    ENDGAME_ON = 4
     MAX_ACTIVE_PIECES = 16
     MAX_ACTIVE_CHUNKS = 16
     MAX_REQUESTS = 4
@@ -122,7 +121,8 @@ class Downloader(object):
         Return a list of request.Request objects.
 
         """
-        endgame = len(self.active_pieces) + len(self.inactive_pieces) <= Downloader.ENDGAME_ON
+        # endgame mode if all pieces were started
+        endgame = len(self.inactive_pieces) == 0
         if endgame:
             new_requests = self._next_endgame()
         else:
@@ -211,7 +211,7 @@ class Downloader(object):
 
     def _idle_nodes(self, only_empty=False):
         """Return list of all peers which download less than MAX_REQUESTS chunks
-        at the moment. If only_empty is True return only peers to which was
+        at the moment. If only_empty is True return only peers to which were
         sent no one request.
 
         """
