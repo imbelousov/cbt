@@ -82,6 +82,10 @@ class Node(object):
         sleep(timeout):
             Suspend sending of next messages for a <timeout> seconds.
 
+        wait_for_unchoke():
+            Suspend sending of next messages until the peer
+            chokes the client.
+
     """
 
     CONNECTION_TIMEOUT = 2
@@ -168,4 +172,8 @@ class Node(object):
         self.outbox.append(int(time.time() + timeout))
 
     def wait_for_unchoke(self):
+        """Suspend sending of next messages until the peer
+        chokes the client.
+
+        """
         self.outbox.append(Node.MESSAGE_WAITING_UNCHOKING)

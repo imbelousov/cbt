@@ -85,7 +85,7 @@ class Downloader(object):
 
     """
 
-    END_OF_GAME_ON = 4
+    ENDGAME_ON = 4
     MAX_ACTIVE_PIECES = 16
     MAX_ACTIVE_CHUNKS = 16
     MAX_REQUESTS = 4
@@ -122,9 +122,9 @@ class Downloader(object):
         Return a list of request.Request objects.
 
         """
-        end_of_game = len(self.active_pieces) + len(self.inactive_pieces) <= Downloader.END_OF_GAME_ON
-        if end_of_game:
-            new_requests = self._next_end_of_game()
+        endgame = len(self.active_pieces) + len(self.inactive_pieces) <= Downloader.ENDGAME_ON
+        if endgame:
+            new_requests = self._next_endgame()
         else:
             new_requests = self._next_normal()
         return new_requests
@@ -281,7 +281,7 @@ class Downloader(object):
 
         return new_requests
 
-    def _next_end_of_game(self):
+    def _next_endgame(self):
         new_requests = []
 
         for p in self.inactive_pieces:
