@@ -174,9 +174,9 @@ class Torrent(object):
 
         # Events handlers
         self.peer.on_recv(self.handle_message)
-        self.peer.on_recv_handshake(self.handle_handshake)
-        self.downloader.on_piece_downloaded(self.handle_piece)
-        self.downloader.on_cancel(self.handle_cancel_download)
+        self.peer.on_recv_handshake(self.handle_message_handshake)
+        self.downloader.event_connect("piece", self.on_piece)
+        self.downloader.event_connect("cancel", self.on_cancel)
 
     def __str__(self):
         return self._to_string()
@@ -199,7 +199,7 @@ class Torrent(object):
                 self.peer.append_node(ip, port)
         self.peer.connect_all()
         for n in self.peer.nodes:
-            self.send_handshake(n)
+            self.send_message_handshake(n)
 
     def stop(self):
         self.tracker.request(
@@ -215,16 +215,15 @@ class Torrent(object):
     def message(self):
         self.peer.message()
         self.downloader.message()
-        self.try_reconnect()
 
     def download_chunks(self):
         for request in self.downloader.next():
             if request.node.p_choke == node.Node.TRUE:
-                self.send_unchoke(request.node)
-                self.send_interested(request.node)
+                self.send_message_unchoke(request.node)
+                self.send_message_interested(request.node)
                 request.node.wait_for_unchoke()
                 request.node.p_choke = node.Node.WAITING
-            self.send_request(request.node, request.piece, request.chunk * piece.Piece.CHUNK, piece.Piece.CHUNK)
+            self.send_message_request(request.node, request.piece, request.chunk * piece.Piece.CHUNK, piece.Piece.CHUNK)
 
     def handle_message(self, n, buf):
         if not n.handshaked:
@@ -239,21 +238,21 @@ class Torrent(object):
         # Other messages
         m_type = ord(buf[4])
         if m_type == Torrent.MESSAGE_CHOKE:
-            self.handle_choke(n)
+            self.handle_message_choke(n)
         elif m_type == Torrent.MESSAGE_UNCHOKE:
-            self.handle_unchoke(n)
+            self.handle_message_unchoke(n)
         elif m_type == Torrent.MESSAGE_INTERESTED:
-            self.handle_interested(n)
+            self.handle_message_interested(n)
         elif m_type == Torrent.MESSAGE_NOTINTERESTED:
-            self.handle_notinterested(n)
+            self.handle_message_notinterested(n)
         elif m_type == Torrent.MESSAGE_HAVE:
-            self.handle_have(n, buf[5:])
+            self.handle_message_have(n, buf[5:])
         elif m_type == Torrent.MESSAGE_BITFIELD:
-            self.handle_bitfield(n, buf[5:])
+            self.handle_message_bitfield(n, buf[5:])
         elif m_type == Torrent.MESSAGE_PIECE:
-            self.handle_chunk(n, buf[5:])
+            self.handle_message_piece(n, buf[5:])
 
-    def handle_handshake(self, n, buf):
+    def handle_message_handshake(self, n, buf):
         if n.handshaked:
             n.close()
             return
@@ -269,24 +268,24 @@ class Torrent(object):
         n.id = buf[29+pstr_len:49+pstr_len]
         n.handshaked = True
 
-    def handle_choke(self, n):
+    def handle_message_choke(self, n):
         n.p_choke = node.Node.TRUE
 
-    def handle_unchoke(self, n):
+    def handle_message_unchoke(self, n):
         n.p_choke = node.Node.FALSE
 
-    def handle_interested(self, n):
+    def handle_message_interested(self, n):
         n.p_interested = True
 
-    def handle_notinterested(self, n):
+    def handle_message_notinterested(self, n):
         n.p_interested = False
 
-    def handle_have(self, n, buf):
+    def handle_message_have(self, n, buf):
         index = convert.uint_ord(buf[0:4])
         n.set_piece(index)
         self.download_chunks()
 
-    def handle_bitfield(self, n, buf):
+    def handle_message_bitfield(self, n, buf):
         n.bitfield = []
         for byte in buf:
             mask = 0x80
@@ -297,7 +296,7 @@ class Torrent(object):
                 n.bitfield.append(bit)
         self.download_chunks()
 
-    def handle_chunk(self, n, buf):
+    def handle_message_piece(self, n, buf):
         index = convert.uint_ord(buf[0:4])
         begin = convert.uint_ord(buf[4:8])
         chunk = int(begin / piece.Piece.CHUNK)
@@ -305,15 +304,15 @@ class Torrent(object):
         self.downloader.finish(n, index, chunk, data)
         self.download_chunks()
 
-    def handle_piece(self, n, index, data):
+    def on_piece(self, n, index, data):
         self.writer.write(index * len(data), data)
 
-    def handle_cancel_download(self, n, index, chunk):
+    def on_cancel(self, n, index, chunk):
         if n in self.peer.nodes:
-            self.send_cancel(n, index, chunk * piece.Piece.CHUNK, piece.Piece.CHUNK)
+            self.send_message_cancel(n, index, chunk * piece.Piece.CHUNK, piece.Piece.CHUNK)
         self.download_chunks()
 
-    def send_handshake(self, n):
+    def send_message_handshake(self, n):
         buf = "".join((
             chr(len(peer.Peer.PROTOCOL)),
             peer.Peer.PROTOCOL,
@@ -330,37 +329,37 @@ class Torrent(object):
         ))
         n.send(buf)
 
-    def send_choke(self, n):
+    def send_message_choke(self, n):
         self.send_message(n, chr(Torrent.MESSAGE_CHOKE))
         n.c_choke = True
 
-    def send_unchoke(self, n):
+    def send_message_unchoke(self, n):
         self.send_message(n, chr(Torrent.MESSAGE_UNCHOKE))
         n.c_choke = False
 
-    def send_interested(self, n):
+    def send_message_interested(self, n):
         self.send_message(n, chr(Torrent.MESSAGE_INTERESTED))
         n.c_interested = True
 
-    def send_notinterested(self, n):
+    def send_message_notinterested(self, n):
         self.send_message(n, chr(Torrent.MESSAGE_NOTINTERESTED))
         n.c_interested = False
 
-    def send_have(self, n, index):
+    def send_message_have(self, n, index):
         buf = "".join((
             chr(Torrent.MESSAGE_HAVE),
             convert.uint_chr(index)
         ))
         self.send_message(n, buf)
 
-    def send_bitfield(self, n):
+    def send_message_bitfield(self, n):
         count = int(math.ceil(len(self.pieces) / 8))
         buf = [chr(Torrent.MESSAGE_BITFIELD)]
         for _ in xrange(count):
             buf.append(chr(0))
         self.send_message(n, "".join(buf))
 
-    def send_request(self, n, index, begin, length):
+    def send_message_request(self, n, index, begin, length):
         buf = "".join((
             chr(Torrent.MESSAGE_REQUEST),
             convert.uint_chr(index),
@@ -369,7 +368,7 @@ class Torrent(object):
         ))
         self.send_message(n, buf)
 
-    def send_cancel(self, n, index, begin, length):
+    def send_message_cancel(self, n, index, begin, length):
         buf = "".join((
             chr(Torrent.MESSAGE_CANCEL),
             convert.uint_chr(index),
@@ -377,23 +376,6 @@ class Torrent(object):
             convert.uint_chr(length)
         ))
         self.send_message(n, buf)
-
-    def try_reconnect(self):
-        cur_time = time.time()
-        new_nodes = []
-        for n in self.peer.potential_nodes:
-            if n in self.peer.nodes:
-                continue
-            if cur_time - n.last_send >= Torrent.RECONNECT_AFTER:
-                n.last_send = cur_time
-                self.peer.nodes.append(n)
-                new_nodes.append(n)
-        if len(new_nodes):
-            print "Try to reconnect!"
-            self.peer.connect_all()
-            for n in new_nodes:
-                if n.conn:
-                    self.send_handshake(n)
 
     def _to_string(self):
         requested_nodes, all_nodes = self.downloader.nodes_count()

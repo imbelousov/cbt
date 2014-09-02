@@ -23,6 +23,12 @@ class Peer(object):
 
     Events:
 
+        on_connect:
+            The connection to the peer is established.
+            Prototype: on_connect(node).
+            Where node - this peer.
+            To add a handler use: peer.on_connect(function).
+
         on_recv:
             A single regular BitTorrent message is received.
             Prototype: on_recv(node, buffer).
@@ -55,9 +61,15 @@ class Peer(object):
         self.nodes = []
         self.potential_nodes = []
         self.handlers = {
+            "on_connect": [],
             "on_recv": [],
             "on_recv_handshake": []
         }
+
+    def on_connect(self, func):
+        """Add on_connect handler."""
+        if func not in self.handlers["on_connect"]:
+            self.handlers["on_connect"].append(func)
 
     def on_recv(self, func):
         """Add on_recv handler."""
