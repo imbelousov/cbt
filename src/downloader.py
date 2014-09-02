@@ -121,9 +121,7 @@ class Downloader(object):
         Return a list of request.Request objects.
 
         """
-        # endgame mode if all pieces were started
-        endgame = len(self.inactive_pieces) == 0
-        if endgame:
+        if self._is_endgame():
             new_requests = self._next_endgame()
         else:
             new_requests = self._next_normal()
@@ -223,6 +221,9 @@ class Downloader(object):
                 nodes.append(n)
         return nodes
 
+    def _is_endgame(self):
+        return len(self.inactive_pieces) == 0
+
     def _next_normal(self):
         """Compile a list of new requests in normal mode."""
         new_requests = []
@@ -289,6 +290,8 @@ class Downloader(object):
             self.active_pieces.append(p)
         self.inactive_pieces = []
 
+        print "EG!!"
+
         for p in self.active_pieces:
             for chunk in xrange(len(p.chunks_map)):
                 if p.active >= Downloader.MAX_ACTIVE_CHUNKS:
@@ -298,9 +301,8 @@ class Downloader(object):
                     for n in self.all_nodes:
                         if n.get_piece(p.index):
                             nodes.append(n)
-                    if len(nodes):
+                    for n in nodes:
                         p.chunks_map[chunk] = piece.Piece.STATUS_DOWNLOAD
-                        n = random.choice(nodes)
                         n.active += 1
                         if n.active == Downloader.MAX_REQUESTS:
                             nodes.remove(n)

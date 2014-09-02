@@ -81,13 +81,17 @@ class Peer(object):
                 return
         self.potential_nodes.append(new_node)
 
-    def connect_all(self):
+    def connect_all(self, background=False):
         """Connect to all peers in the list.
         Due to the fact that socket.connect() method is blocking
         connections are established in separate threads.
+        Set background flag if you don't need to wait for
+        all these threads.
 
         """
         def connect(n):
+            if n.conn:
+                return
             try:
                 n.connect()
             except (socket.timeout, socket.error):
@@ -97,8 +101,9 @@ class Peer(object):
             thread = threading.Thread(target=connect, args=(n,))
             threads.append(thread)
             thread.start()
-        for thread in threads:
-            thread.join()
+        if not background:
+            for thread in threads:
+                thread.join()
 
     def message(self):
         """You have to call this method in a loop.

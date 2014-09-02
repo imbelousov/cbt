@@ -107,8 +107,8 @@ class Node(object):
         self.id = ""
         self.inbox = Buf()
         self.ip = ip
-        self.last_recv = 0
-        self.last_send = 0
+        self.last_recv = time.time()
+        self.last_send = time.time()
         self.outbox = []
         self.port = port
         self.p_choke = Node.TRUE

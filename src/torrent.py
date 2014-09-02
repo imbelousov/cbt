@@ -99,6 +99,8 @@ class Torrent(object):
     MESSAGE_PIECE = 7
     MESSAGE_CANCEL = 8
 
+    RECONNECT_AFTER = 30
+
     id = None
     port = None
 
@@ -213,6 +215,7 @@ class Torrent(object):
     def message(self):
         self.peer.message()
         self.downloader.message()
+        self.try_reconnect()
 
     def download_chunks(self):
         for request in self.downloader.next():
@@ -374,6 +377,23 @@ class Torrent(object):
             convert.uint_chr(length)
         ))
         self.send_message(n, buf)
+
+    def try_reconnect(self):
+        cur_time = time.time()
+        new_nodes = []
+        for n in self.peer.potential_nodes:
+            if n in self.peer.nodes:
+                continue
+            if cur_time - n.last_send >= Torrent.RECONNECT_AFTER:
+                n.last_send = cur_time
+                self.peer.nodes.append(n)
+                new_nodes.append(n)
+        if len(new_nodes):
+            print "Try to reconnect!"
+            self.peer.connect_all()
+            for n in new_nodes:
+                if n.conn:
+                    self.send_handshake(n)
 
     def _to_string(self):
         requested_nodes, all_nodes = self.downloader.nodes_count()
