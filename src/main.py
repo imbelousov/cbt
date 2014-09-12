@@ -1,39 +1,20 @@
-#!/usr/bin/python2
-
-import os
 import sys
 
-import torrent
+import client.client
 
 
-def main(argv):
-    argc = len(argv)
-    if argc == 0 or argc > 2:
-        print "Syntax: cbt <.torrent file> [<download path>]"
-        return
-    torrent_path = argv[0]
-    if argc == 2:
-        download_path = argv[1]
-    else:
-        download_path = os.getcwd()
-
-    print "Starting..."
+def main():
+    c = client.client()
+    c.open_from_file(sys.argv[1])
+    c.set_download_path(sys.argv[2])
+    c.start()
     try:
-        t = torrent.Torrent(torrent_path, download_path)
-    except IOError:
-        print "Invalid .torrent file"
-        return
-    t.stop()
-    try:
-        t.start()
-    except WindowsError:
-        print "Permission denied"
-        return
-    print "Started"
-    torrent.main_loop()
-    print "Stopping..."
-    t.stop()
+        #client.client.main_loop()
+        pass
+    except KeyboardInterrupt:
+        pass
+    c.stop()
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()
